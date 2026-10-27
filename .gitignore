@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+uploads/
+playwright-report/
+test-results/
+e2e/.auth/
+.DS_Store
+*.log
+.qodo/
+.claude/settings.local.json
