@@ -3,9 +3,9 @@ id: S01.3
 epic: E01
 title: One-origin test server and end-to-end tests
 type: feature
-status: draft
+status: done
 covers: [NFR2, NFR6]
-updated: 2026-10-29
+updated: 2026-10-30
 ---
 
 # S01.3 One-origin test server and end-to-end tests
@@ -78,8 +78,35 @@ In build order (BE first; the first BE ticket implements the contract):
 
 ## Known gaps
 
+Unticked by the user on 2026-10-30 (accepted, not fixed). Full text in [review.md](review.md); QA found no bugs ([qa.md](qa.md)).
+
+- F1 [minor][docs] `createTestApp` now uses `NestFactory.create` instead of `@nestjs/testing`; this is recorded only in BE-01's notes (not in S01.1 BE-05, this story's "Changes" or design §15), and `@nestjs/testing` is now an unused devDependency.
+- F2 [minor][docs] E01 design §2 lists an incomplete `e2e/` layout (missing `package.json`, `tsconfig.json`, `test-env.ts`, `qa-serve.ts`).
+- F3 [minor][docs] `apps/api/CLAUDE.md` does not list `pnpm qa:serve` among the commands that need no approval.
+- F4 [minor][be] `pnpm qa:serve` exits 130 after a normal Ctrl+C, so pnpm reports "Command failed".
+
 ## Verification
 
-<!-- architect, /story-done: **GREEN** | **RED** · YYYY-MM-DD, then evidence bullets (file:line) -->
+**GREEN** · 2026-10-30
+
+- **Criterion AC1:** `apps/api/src/app.module.ts:27-34` imports `ServeStaticModule` with `exclude: ['/api/{*path}']` only when `WEB_DIST_DIR` is set; tested by TC-1.1, TC-1.2, TC-1.3 in `apps/api/test/static.int.test.ts:23,31,39,47` (content type, `HealthResponse`, `ErrorResponse` `NOT_FOUND` for `/api/nope`, `/api`, `/api/nope/deeper`).
+- **Criterion AC2:** without `WEB_DIST_DIR` the module is not imported (`app.module.ts:27`, `: []`); TC-2.1 at `static.int.test.ts:75`.
+- **Criterion AC3:** `apps/api/src/common/config.ts:9-16,35` resolves the path and refuses a folder without an `index.html` file, with the message `WEB_DIST_DIR: no index.html in <path>`; `apps/api/src/main.ts:11-14` exits 1 on `ConfigError`. TC-3.1 and TC-3.2 at `config.test.ts:77,85,93,102,109`.
+- **Criterion AC4:** root `package.json:25` `qa:serve` = build → guarded `test:db:prepare` → `e2e/qa-serve.ts`, which waits for `/api/health` and then prints `QA server: http://localhost:4100` (`qa-serve.ts:74-79`) and forwards SIGINT and SIGTERM (`:65-71`). TC-4.1 and TC-4.2 pass by hand ([qa.md](qa.md) run 2; TC-4.2 log at `qa/run2-TC-4.2.txt`).
+- **Criterion AC5:** root `package.json:24` `e2e` = build → `test:db:prepare` → Playwright. `e2e/playwright.config.ts:25-47`: the `desktop` project (1280 × 800) and the `mobile` project (375 × 812), `workers: 1`, a `webServer` on :4100 that is never reused. `pnpm e2e` gave 10 passed and exit 0 on 2026-10-30; TC-5.1 and TC-5.2 pass by hand (qa.md run 2).
+- **Criteria AC6 to AC9:** tests named TC-6.1, TC-7.1, TC-7.2, TC-8.1 and TC-9.1 at `e2e/tests/smoke.spec.ts:31,50,58,65,81`, with role-based locators. They run in both projects and passed. TC-7.3 was checked by hand (qa.md run 2).
+- **Traceability:** every AC has at least one test case. Each of the 11 automated test cases has a passing test whose title starts with its identifier, and they are owned by BE-01 (TC-1.1 to TC-3.2) and FE-01 (TC-6.1 to TC-9.1). The manual test cases TC-4.1, 4.2, 5.1, 5.2 and 7.3 have evidence in qa.md run 2. No role must be refused (design §9).
+- **Contract:** no new endpoints or schemas. Paths outside `/api` get `index.html`; an unknown `/api` path still gets the 404 `ErrorResponse` (matches § API contract).
+- **Data:** there are no migrations, as the design expects. The test settings in `e2e/test-env.ts:13-18` match design §6, and `DATABASE_URL` equals `TEST_DATABASE_URL` (`apps/api/scripts/test-db-guard.ts:2-6`).
+- **Layering:** configuration is read only through `loadConfig()`, and static serving is a module import in `AppModule.forRoot`. Both follow design doc D7 and E01 design §7.
+- **Scope:** nothing was built beyond the story. The pre-start health check and the 30 s timeout in `qa-serve.ts:46,81-86` are small safety additions and are documented in BE-02's notes.
+- **Differences are written down:** the `createTestApp` switch to `NestFactory.create` is recorded in BE-01's notes and in `apps/api/test/helpers.ts:17-18`. The ESLint ignore change is in FE-01's notes, and the `qa-serve.ts` choices are in BE-02's notes.
+- **Documentation, left open by the user's choice (review round 1, F1 to F4 unticked; none of them is a defect against an acceptance criterion):**
+  - E01 `design.md` §2 lists an incomplete `e2e/` layout (F2), and §15 does not mention the `createTestApp` change (F1).
+  - `@nestjs/testing` is still a devDependency but nothing imports it (F1).
+  - `apps/api/CLAUDE.md:19` does not list `pnpm qa:serve` among the commands that need no approval (F3).
+  - `qa:serve` exits 130 after Ctrl+C (F4).
+  - Not a review finding: the order "reset → build" in `design-doc.md:390-391` differs from the real order "build → reset".
+  - All of these are for the architect's design update at `/epic-done`.
 
 ## Changes

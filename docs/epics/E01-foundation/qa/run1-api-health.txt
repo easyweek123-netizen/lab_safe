@@ -1,0 +1,8 @@
+$ curl -s http://localhost:4100/api/health
+{"status":"ok","database":"ok"}
+
+$ curl -s http://localhost:4100/api/nope
+{"statusCode":404,"code":"NOT_FOUND","message":"Not found."}
+
+$ curl -s -o /dev/null -w "%{http_code}" http://localhost:4100/some/deep/link
+200

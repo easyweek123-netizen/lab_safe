@@ -38,8 +38,17 @@ Every route of the app, in `src/App.tsx`. Each epic adds its rows when it adds a
 - **Find elements by role or label,** and assert what the user sees.
 - **Names:** every test title starts with its test-case identifier, for example `it('TC-7.1 shows "Page not found" …', …)`.
 
+## End-to-end tests
+
+- **Specs go in `e2e/tests/*.spec.ts`** (Playwright, Chromium only). Every spec runs in two projects: `desktop` (1280 × 800) and `mobile` (375 × 812). Playwright starts the built app on :4100 with the test settings of `e2e/test-env.ts`, against a freshly reset `labsafe_test`.
+- **Titles start with the test-case identifier,** for example `test('TC-7.1 home has no horizontal scroll', …)`.
+- **Use role-based locators** (`getByRole`, `getByLabel`) and web-first assertions (`toBeVisible`, `toHaveURL`, `toHaveTitle`); no CSS selectors for content.
+- **Every new page gets a no-horizontal-scroll check at 375 px** (NFR2): once its content is visible, `document.documentElement.scrollWidth <= document.documentElement.clientWidth`.
+- **Run them with `pnpm e2e`;** never at the same time as `pnpm verify` (both reset `labsafe_test`). The HTML report is written to `e2e/playwright-report/`.
+
 ## Commands
 
 - `pnpm --filter @labsafe/web test`: the web component tests.
 - `pnpm dev`: the API on :3000 and the web app on :5173 (the Vite proxy forwards `/api`).
 - `pnpm verify`: the whole quality gate (format check, lint, type check, unit tests, integration tests, build, docs check). It must pass before a ticket is done.
+- `pnpm e2e`: build, reset `labsafe_test`, then the Playwright specs in both projects. Install Chromium once with `pnpm exec playwright install chromium`.

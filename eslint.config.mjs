@@ -11,8 +11,9 @@ export default defineConfig(
     ignores: [
       '**/dist/**',
       '**/coverage/**',
-      'playwright-report/',
-      'test-results/',
+      // Playwright writes these next to its config (`e2e/`); a failed run leaves trace-viewer JS there.
+      '**/playwright-report/**',
+      '**/test-results/**',
       '.claude/',
       '.qodo/',
       'docs/',

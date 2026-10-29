@@ -1,6 +1,6 @@
 ---
 status: approved
-updated: 2026-10-29
+updated: 2026-10-30
 ---
 
 # LabSafe design doc
@@ -383,12 +383,12 @@ Each automated test's title starts with its test-case id, for example `it('TC-3.
 
 | Command | What it runs |
 | --- | --- |
-| `pnpm db:up` | `docker compose up -d db db-test` (`postgres:15`; dev on 5442 with a volume, `labsafe_test` on 5443 on tmpfs) |
-| `pnpm dev` | Nest in watch mode on :3000 and Vite on :5173, together |
-| `pnpm typecheck` | `tsc --noEmit` in every package |
+| `pnpm db:up` | `docker compose up -d --wait db db-test` (`postgres:15`; dev on 5442 with a volume, `labsafe_test` on 5443 on tmpfs) |
+| `pnpm dev` | `concurrently`: shared `tsup --watch`, Nest watch on :3000 (loads the repository-root `.env`), Vite on :5173 (proxies `/api`) |
+| `pnpm typecheck` | build `@labsafe/shared`, then `tsc --noEmit` in every package |
 | `pnpm verify` | prettier check → eslint → typecheck → unit and web tests → backend integration tests → build → docs:check |
-| `pnpm e2e` | reset `labsafe_test`, run migrations, load the e2e seed → build → start on :4100 with `AI_PROVIDER=fake` → Playwright |
-| `pnpm qa:serve` | the same preparation and start as `e2e`, then print `http://localhost:4100` and keep running |
+| `pnpm e2e` | build → reset `labsafe_test` and run migrations (`test:db:prepare`; later epics add the e2e seed here) → Playwright starts the built app on :4100 (later epics set `AI_PROVIDER=fake` in test env) |
+| `pnpm qa:serve` | build → `test:db:prepare` → start the built app on :4100 with the same test settings as e2e, print `QA server: http://localhost:4100`, keep running |
 | `pnpm docs:check` | `node .claude/tools/docs-check.mjs` |
 
 Extra scripts: `db:migrate` and `db:seed` (development database; each run needs the user's approval) and `eval:assistant`. `pnpm verify` and `pnpm e2e` both use `labsafe_test`, so they never run at the same time.
@@ -438,4 +438,4 @@ Extra scripts: `db:migrate` and `db:seed` (development database; each run needs 
 
 ## 13. Changes
 
-*(none yet)*
+- **2026-10-30** (E01 `/epic-done`): §9 tooling table aligned with the built root scripts — `db:up` uses `--wait`, `typecheck` builds shared first, `dev` loads `.env` from the repository root, and `pnpm e2e` / `pnpm qa:serve` run **build → `test:db:prepare`** (not reset-then-build). E01 has no e2e seed or assistant env yet; those steps are noted for later epics.

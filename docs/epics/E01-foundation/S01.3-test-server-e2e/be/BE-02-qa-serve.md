@@ -2,7 +2,7 @@
 id: BE-02
 story: S01.3
 layer: be
-status: todo
+status: done
 depends_on: [BE-01]
 covers: [AC4]
 updated: 2026-10-29
@@ -43,3 +43,27 @@ Playwright, `pnpm e2e` and the `e2e` package's `package.json` and `tsconfig.json
 ## Implementation notes
 
 <!-- Filled in by the dev: what was done, deviations from this ticket or the design and why, migration names. -->
+
+**Done (2026-10-29).** No migrations.
+
+- `e2e/test-env.ts`: `TEST_PORT`, `TEST_BASE_URL` and `TEST_ENV` exactly as in step 1 (`as const`). Its comment, and a new comment in `apps/api/scripts/test-db-guard.ts`, say that `TEST_ENV.DATABASE_URL` must equal `TEST_DATABASE_URL`.
+- `e2e/qa-serve.ts`: starts `apps/api/dist/main.js` with `{ ...process.env, ...TEST_ENV }` and inherited output. It checks `GET /api/health` every 250 ms for up to 30 s and prints `QA server: http://localhost:4100` on the first 200. If the child exits first, it prints `The QA server did not start. Is port 4100 already in use?` and exits 1. It passes `SIGINT`/`SIGTERM` on to the child and exits with the child's exit code.
+- Root `package.json`: `"qa:serve": "pnpm build && pnpm test:db:prepare && tsx e2e/qa-serve.ts"`, and devDependency `tsx` `^4.23.15` (the same version as the API). `pnpm-lock.yaml` is updated.
+- `apps/api/CLAUDE.md`: a new "Test server" section with the three bullets.
+
+**Checked by hand:**
+
+- TC-4.1: `pnpm qa:serve` ran build, then `Test database labsafe_test is ready.`, then the Nest start-up, then `QA server: http://localhost:4100`. `/api/health` answered `{"status":"ok","database":"ok"}`; `/` answered 200 `text/html`; `/does-not-exist` returned the web app (`<title>LabSafe</title>`); `/api/meta/lists` answered. `SIGINT` sent to the process group (as Ctrl+C does) stopped it, and nothing was listening on 4100 afterwards.
+- Port 4100 taken by a plain TCP listener: Nest logs `EADDRINUSE`, then the message above, exit 1.
+- Port 4100 taken by a second QA server: the message above, exit 1.
+- TC-4.2 was **not** run. It needs the test database stopped, and that needs the user's approval. The behaviour comes from `test:db:prepare` (S01.1 BE-04): the `&&` chain stops before `tsx` when it fails.
+
+**Differences from the ticket (all inside `qa-serve.ts`; none changes the design):**
+
+1. **Check before start.** If something already answers `/api/health` on :4100, the script prints the "did not start" message and exits 1 without starting. Without this check, the polling could reach the other server before the child failed with `EADDRINUSE`, and the script would announce a server that isn't ours.
+2. **30 s timeout.** The ticket didn't say what happens when the app never answers. The script prints `The QA server did not answer http://localhost:4100/api/health within 30 s.`, stops the child, and exits 1.
+3. **Exit code after Ctrl+C.** When a signal stops the child, it has no exit code, so the script exits with 128 + the signal number (130 for Ctrl+C, 143 for SIGTERM), as shells do. As a result, pnpm prints `ELIFECYCLE Command failed with exit code 130` after Ctrl+C. This follows "exit with the child's exit code" literally; exiting 0 after a requested stop would be a one-line change.
+4. **Which Node.** The child is started with `process.execPath`, the Node that runs `tsx`, not `node` from `PATH`. The working directory is inherited, and pnpm runs root scripts from the repository root, so `WEB_DIST_DIR=apps/web/dist` resolves correctly.
+5. **Type checking.** `e2e/*.ts` is linted and format-checked by `pnpm verify`, but `pnpm typecheck` doesn't cover it until FE-01 adds `e2e/package.json` and `tsconfig.json`. A one-off strict `tsc --noEmit` of both files passed.
+
+**Proof:** `pnpm verify` passes. That covers format, lint, typecheck, unit tests (shared 18, api 46, web 9), integration tests (22), build and docs check (OK).

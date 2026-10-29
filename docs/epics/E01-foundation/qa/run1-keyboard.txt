@@ -1,0 +1,4 @@
+Playwright Chromium on http://localhost:5173/does-not-exist (same UI as QA server):
+Tab → focus "LabSafe" header link
+Tab → focus "Go to the home page"
+Enter → navigates to / with four rooms visible

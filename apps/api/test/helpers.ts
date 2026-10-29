@@ -1,5 +1,5 @@
 import type { INestApplication } from '@nestjs/common';
-import { Test } from '@nestjs/testing';
+import { NestFactory } from '@nestjs/core';
 import { Client } from 'pg';
 import { assertTestDatabase, TEST_DATABASE_URL } from '../scripts/test-db-guard';
 import { AppModule } from '../src/app.module';
@@ -10,19 +10,23 @@ import { loadConfig } from '../src/common/config';
 const KEPT_TABLES = ['lab_rooms', 'migrations'];
 
 /**
- * Builds and starts the real app (the same `AppModule` and `configureApp` as `main.ts`) on
- * `labsafe_test`. `env` overrides single settings, for example `WEB_DIST_DIR` in S01.3.
- * Close it with `app.close()` in `afterAll`.
+ * Builds and starts the real app (the same `NestFactory.create`, `AppModule` and `configureApp`
+ * as `main.ts`) on `labsafe_test`. `env` overrides single settings, for example `WEB_DIST_DIR` in
+ * S01.3. Close it with `app.close()` in `afterAll`.
+ *
+ * Not `@nestjs/testing`: its `compile()` creates the providers before the HTTP adapter exists,
+ * so `@nestjs/serve-static` would pick its do-nothing loader and never serve the web app.
  */
 export async function createTestApp(env: Record<string, string> = {}): Promise<INestApplication> {
   const config = loadConfig({ ...process.env, ...env });
   // Integration tests write data, so they may only ever use the test database.
   assertTestDatabase(config.DATABASE_URL);
 
-  const moduleRef = await Test.createTestingModule({
-    imports: [AppModule.forRoot(config)],
-  }).compile();
-  const app = moduleRef.createNestApplication({ logger: ['error', 'warn'] });
+  const app = await NestFactory.create(AppModule.forRoot(config), {
+    logger: ['error', 'warn'],
+    // Throw start-up errors to the test instead of ending the test process.
+    abortOnError: false,
+  });
   configureApp(app);
   await app.init();
   return app;

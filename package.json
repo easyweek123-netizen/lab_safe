@@ -21,6 +21,8 @@
     "db:down": "docker compose stop db db-test",
     "db:migrate": "pnpm --filter @labsafe/api db:migrate",
     "test:db:prepare": "pnpm --filter @labsafe/api test:db:prepare",
+    "e2e": "pnpm build && pnpm test:db:prepare && pnpm --filter @labsafe/e2e e2e",
+    "qa:serve": "pnpm build && pnpm test:db:prepare && tsx e2e/qa-serve.ts",
     "docs:check": "node .claude/tools/docs-check.mjs",
     "verify": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:int && pnpm build && pnpm docs:check"
   },
@@ -31,6 +33,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.13.0",
     "prettier": "^3.9.10",
+    "tsx": "^4.23.15",
     "typescript": "~6.0.3",
     "typescript-eslint": "^8.72.1"
   }

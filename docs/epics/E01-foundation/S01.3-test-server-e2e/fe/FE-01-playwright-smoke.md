@@ -2,7 +2,7 @@
 id: FE-01
 story: S01.3
 layer: fe
-status: todo
+status: done
 depends_on: [BE-01, BE-02]
 covers: [AC5, AC6, AC7, AC8, AC9]
 updated: 2026-10-29
@@ -50,3 +50,17 @@ Seeded instruments and logged-in sessions (`e2e/.auth/`, later epics). The timed
 ## Implementation notes
 
 <!-- Filled in by the dev: what was done, deviations from this ticket or the design and why. -->
+
+**Done (2026-10-29):**
+
+- `e2e/package.json` (`@labsafe/e2e`, ESM, `@playwright/test` ^1.64.1, `@types/node` ^24; scripts `typecheck` and `e2e`, no `test`). `e2e/tsconfig.json` extends the base with `module: ESNext`, `moduleResolution: bundler`, `types: ["node"]`, `noEmit`; it includes `*.ts` and `tests`, so `pnpm typecheck` now also checks BE-02's `test-env.ts` and `qa-serve.ts`. The package was already listed in `pnpm-workspace.yaml`.
+- `e2e/playwright.config.ts` exactly as in step 2: projects `desktop` (Desktop Chrome, 1280 × 800) and `mobile` (Chromium, 375 × 812, `isMobile`, `hasTouch`); `webServer` runs `node apps/api/dist/main.js` from the repository root (`resolve(import.meta.dirname, '..')`) with `TEST_ENV`, waits for `/api/health`, never reuses a running server.
+- `e2e/tests/smoke.spec.ts`: one test per TC (TC-6.1, TC-7.1, TC-7.2, TC-8.1, TC-9.1), each run in both projects (10 runs). Lists are found by their accessible names (`list` "Lab rooms" / "Hazard types", from `aria-labelledby`); TC-6.1 also checks that there are exactly four rooms.
+- Root `package.json`: `"e2e": "pnpm build && pnpm test:db:prepare && pnpm --filter @labsafe/e2e e2e"`.
+- `apps/web/CLAUDE.md`: new "End-to-end tests" section, and `pnpm e2e` in "Commands".
+- Proof: `pnpm e2e` exit 0, 10 passed, nothing listens on :4100 afterwards (TC-5.1). TC-5.2 tried once: with the title expectation changed, exit 1 and the report named TC-9.1 in `[desktop]` and `[mobile]`; the change was undone.
+
+**Differences from the ticket:**
+
+- `eslint.config.mjs` (not in the ticket's file list): the ignores `playwright-report/` and `test-results/` matched only the repository root in flat config, but Playwright writes them next to its config, in `e2e/`. After a failed e2e run, the trace viewer's JS files in `e2e/playwright-report/trace/` made `pnpm lint` (and so `pnpm verify`) fail. Changed to `**/playwright-report/**` and `**/test-results/**`. Prettier and `.gitignore` already matched at any depth.
+

@@ -1,0 +1,4 @@
+$ pnpm qa:serve
+… build and test:db:prepare …
+[NestApplication] Nest application successfully started
+QA server: http://localhost:4100

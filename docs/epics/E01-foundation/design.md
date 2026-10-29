@@ -1,6 +1,6 @@
 ---
 status: approved
-updated: 2026-10-29
+updated: 2026-10-30
 ---
 
 # E01 design
@@ -35,16 +35,18 @@ tsconfig.base.json      strict: true, noUncheckedIndexedAccess, target ES2023
 eslint.config.mjs  ·  .prettierrc  ·  .prettierignore  ·  .nvmrc  ·  .env.example
 docker-compose.yml      db (dev, 5442) and db-test (labsafe_test, 5443)
 packages/shared/        src/lists.ts · src/errors.ts · src/schemas/{health,meta}.ts · src/index.ts → dist (ESM + CJS + types)
-apps/api/               src/main.ts · src/app.module.ts
-                        src/common/   config.ts · error.filter.ts · zod-validation.pipe.ts
+apps/api/               src/main.ts · src/app.module.ts · src/app.setup.ts
+                        src/common/   config.ts · error.filter.ts · zod-validation.pipe.ts · app.exception.ts
                         src/modules/  health/ · meta/
                         src/db/       data-source.ts · migrations/
-                        scripts/      prepare-test-db.ts
-                        test/         integration tests (*.int.test.ts) and helpers
+                        vitest.config.mts · vitest.int.config.mts
+                        scripts/      prepare-test-db.ts · test-db-guard.ts
+                        test/         global-setup.ts · setup-file.ts · helpers.ts · *.int.test.ts
                         CLAUDE.md
 apps/web/               src/main.tsx · src/App.tsx (routes) · src/pages/{home,not-found}/ · src/components/ · src/api/
                         CLAUDE.md
-e2e/                    playwright.config.ts · tests/smoke.spec.ts
+e2e/                    package.json (@labsafe/e2e) · test-env.ts · qa-serve.ts
+                        playwright.config.ts · tsconfig.json · tests/smoke.spec.ts
 ```
 
 ## 3. Data
@@ -78,8 +80,8 @@ erDiagram
 | Command | What it runs |
 | --- | --- |
 | `pnpm db:up` | `docker compose up -d --wait db db-test` (`pull_policy: missing`, so the local `postgres:15` image is used) |
-| `pnpm dev` | `concurrently`: shared `tsup --watch`, `nest start --watch` on :3000 (`node --env-file-if-exists=.env`), and Vite on :5173 (which proxies `/api` to :3000) |
-| `pnpm typecheck` | `pnpm -r typecheck`, which is `tsc --noEmit` in every package |
+| `pnpm dev` | `concurrently -k` over `dev:shared` (`tsup --watch`), `dev:api` (`nest start --watch` with `node --env-file-if-exists=../../.env` so the repository-root `.env` loads), and `dev:web` (Vite on :5173, proxy `/api` → :3000) |
+| `pnpm typecheck` | `pnpm --filter @labsafe/shared build`, then `pnpm -r typecheck` (`tsc --noEmit` in every package). Shared is built first so dependents type-check against its declarations |
 | `pnpm verify` | `format:check` → `lint` → `typecheck` → `test` (unit and web) → `test:int` (API integration) → `build` → `docs:check`. It stops at the first failure |
 | `pnpm e2e` | `build` → `test:db:prepare` → `playwright test` (Playwright starts the app itself, section 6) |
 | `pnpm qa:serve` | `build` → `test:db:prepare` → start the built app on :4100 with the test settings, and print `QA server: http://localhost:4100` |
@@ -91,10 +93,10 @@ Supporting scripts: `build` (shared → api → web, in dependency order), `test
 
 | Kind | Where | How |
 | --- | --- | --- |
-| Unit (`auto: unit`) | `*.test.ts` next to the code, in api and shared | Vitest. The API uses `unplugin-swc` so Nest decorators work. No database |
-| API integration (`auto: api`) | `apps/api/test/*.int.test.ts` | Vitest with a separate config. `globalSetup` runs `prepare-test-db` (empty schema, then migrations). Files run one at a time (`fileParallelism: false`); a `resetTables()` helper empties every table except `lab_rooms` and the migration records before each file. The real Nest app is tested with Supertest |
+| Unit (`auto: unit`) | `*.test.ts` next to the code, in api and shared | Vitest (`vitest.config.mts`; `.mts` because the API package is CommonJS but Vite loads the config as ESM). The API uses `unplugin-swc` so Nest decorators work. No database |
+| API integration (`auto: api`) | `apps/api/test/*.int.test.ts` | Vitest (`vitest.int.config.mts`, loaded with `--configLoader runner`). `globalSetup` runs `prepare-test-db` once (empty schema, then migrations). Files run one at a time (`fileParallelism: false`). `test/setup-file.ts` calls `resetTables()` in `beforeAll` for every file, which empties every table except `lab_rooms` and the migration records. `createTestApp()` builds the real Nest app with `NestFactory.create` (same path as `main.ts`), not `@nestjs/testing`, so `@nestjs/serve-static` gets a real HTTP adapter; Supertest calls the live app |
 | Web (`auto: web`) | `*.test.tsx` next to the code | Vitest with jsdom, Testing Library, and MSW handlers built from the shared schemas |
-| End-to-end (`auto: e2e`) | `e2e/tests/*.spec.ts` | Playwright with two projects: **desktop** (1280×800) and **mobile** (375×812). `webServer` starts `node apps/api/dist/main.js` on :4100 with the test settings |
+| End-to-end (`auto: e2e`) | `e2e/tests/*.spec.ts` | Playwright (`e2e/playwright.config.ts`) with two projects: **desktop** (1280×800) and **mobile** (375×812). Root `pnpm e2e` builds first, then resets `labsafe_test`; Playwright's `webServer` starts `node apps/api/dist/main.js` from the repository root on :4100 with `TEST_ENV` from `e2e/test-env.ts` |
 
 **Test settings** (not secrets, kept in `e2e/test-env.ts` and reused by `qa:serve`): `DATABASE_URL=postgres://labsafe:labsafe@localhost:5443/labsafe_test`, `PORT=4100`, `NODE_ENV=test`, `WEB_DIST_DIR=apps/web/dist`.
 
@@ -149,8 +151,8 @@ Accounts arrive in E02, which adds the deny-by-default guard. Until then, both E
   - Return mapped objects, never entities.
   - Errors use `ErrorCode` through the filter.
   - Migrations: generate, read every line, keep; never `synchronize`; destructive commands only on `labsafe_test`.
-  - Integration-test helpers (`createTestApp`, `resetTables`) and test naming.
-  - Database commands need the user's approval.
+  - Integration-test helpers: `createTestApp` (`NestFactory.create`, not `@nestjs/testing`), `resetTables` (called from `test/setup-file.ts`, not manually in each file), and test naming.
+  - Database commands need the user's approval; exceptions: `pnpm verify`, `pnpm e2e`, and `pnpm qa:serve` (all use only `labsafe_test` through `test:db:prepare`).
 - **`apps/web/CLAUDE.md`:**
   - The **list of web pages** (route → page folder → epic), which each epic extends.
   - Data access only through hooks in `src/api` that validate responses with the shared schemas.
@@ -198,4 +200,5 @@ Accounts arrive in E02, which adds the deny-by-default guard. Until then, both E
 
 ## 15. Changes
 
-*(none yet)*
+- **2026-10-30** (`/epic-done` design update, epic-review F9): §2 lists the built `e2e/` and API test files; §5 documents shared-first `typecheck`, `concurrently -k`, and the repository-root `.env` path for `dev:api`; §6 documents Vitest `.mts` configs, `--configLoader runner`, and `NestFactory.create` in `createTestApp`.
+- **2026-10-30** (`/epic-done` design update, epic-review F9–F11): §10 and this section record that app-level integration tests must use `NestFactory.create`, not `Test.createTestingModule`, because serve-static picks `NoopLoader` when the HTTP adapter does not exist yet at `compile()` time.

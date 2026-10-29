@@ -1,6 +1,7 @@
 /**
  * The only database that tests may reset (E01-D4, root CLAUDE.md hard rule). Not a secret: the
- * test database runs locally on tmpfs with fixed credentials.
+ * test database runs locally on tmpfs with fixed credentials. `TEST_ENV.DATABASE_URL` in
+ * `e2e/test-env.ts` (the app started by `pnpm qa:serve` and `pnpm e2e`) must stay equal to it.
  */
 export const TEST_DATABASE_URL = 'postgres://labsafe:labsafe@localhost:5443/labsafe_test';
 
