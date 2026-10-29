@@ -1,36 +1,38 @@
 ---
-generated: 2026-10-29T15:03
-master: 6acf0d1
+generated: 2026-10-30T00:40
+master: 6aca632
 branch: master
 ---
 
-# Brief · Thu 29 Oct 2026
+# Brief · Fri 30 Oct 2026
 
 ## Where we stand
 
-- master @ `6acf0d1` (Add agentic scaffold) · last merge: none · master health: unknown (no code and no `pnpm verify` yet)
-- Unmerged branches: none. `chore/agent-mesh` is already fully merged into master (0 ahead, 1 behind).
+- master @ `6aca632` · last merge: **E01 Foundation** (docs close + feature commits) · master health: ✅ (E01 epic-done: `pnpm verify` and `pnpm e2e` green, architect **GREEN**, epic QA **PASS**, 2026-10-30)
+- Unmerged branches: none
 - Working tree: clean
-- Board: no requirements document, no project-wide technical design, no epics (`docs/prd/`, `docs/technical-design/` and `docs/epics/` hold only `.gitkeep`)
-- Documentation check: OK (1 doc, 0 epics)
-- MUST requirements accepted: 0 / unknown (no requirements document yet)
+- Board: **E01 ✅** (3/3 stories, verification GREEN) · **E02 planned** (no branch, no stories yet) · E03–E08 planned
+- Documentation check: OK (38 docs, 8 epics)
+- PRD and project-wide technical design: **approved**
+- MUST requirements accepted: **2 / 26** (NFR6, NFR2 for E01 scope — see PRD §8)
 
 ## Today
 
-1. `/prd "<the impact we want>"`: there is no approved requirements document, and every later gate (design, epics, stories) depends on it. Runs in plan mode, using `LabSafe_Required_Features.pdf` as input. Effort: one session, plus your review of the plan.
-2. After you approve and commit it: `/design-doc`, so the project-wide technical design (stack choices, decisions, tooling commands) is in place before the work is split up.
-3. After that: `/epics "<how to split the work>"`, to freeze the epic list and set the build order.
+1. `/epic-design E02`: E01 is done and merged; E02 has only `epic.md` — no `design.md`, no stories, no branch. Plan mode defines auth, sessions, guards, and the first-admin bootstrap before any code. Effort: one session plus your approval of the plan.
+2. After you approve and commit the design: `/epic-stories E02`, to break the epic into ordered stories, acceptance criteria, test cases, and tickets.
+3. Then: `/build S02.1 BE-01` (or whatever the first ticket is after `/epic-stories`), one ticket per run.
 
 ## Waiting on you
 
-- Write the impact statement for `/prd` (what LabSafe must achieve for the lab, in a form we can measure).
-- Approve each plan (PRD, then design doc, then epics) and commit it yourself.
-- Optional housekeeping: `chore/agent-mesh` is merged and can be deleted (`git branch -d chore/agent-mesh`).
+- Approve the `/epic-design E02` plan (and commit it yourself when ready).
+- Optional: delete local `chore/agent-mesh` if it still exists (fully merged, 6 commits behind master).
+- E01 review findings F1, F3–F13 remain **unticked** — epic review **APPROVE**; tick any you still want `/fix` on master, or leave them.
 
 ## Risks
 
-- Nothing is built yet, so every MUST requirement is still open. The first epic also has to set up the tooling (`pnpm verify`, `pnpm e2e`, `pnpm qa:serve`, `pnpm db:up` on ports 5442/5443). Until that is done, the quality gates report "not available yet".
-- Vague impact metrics in the PRD would make the product-manager's acceptance at the end of each epic hard to judge. Make each metric measurable now.
+- E02 owns **NFR4** and **NFR5** plus every later role check; session and password decisions in the design are costly to change — get the epic design right before the first `/build`.
+- **NFR2** is only accepted for the empty shell; full “usable safety pages at 375 px” waits until E04/E06.
+- **24 MUST** requirements still open; the critical path runs E02 → E03 → E04 before search and the assistant.
 
 ## Tomorrow
 
