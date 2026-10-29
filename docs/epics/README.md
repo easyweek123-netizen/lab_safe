@@ -9,7 +9,7 @@ Delivery order, top to bottom. Frozen by `/epics`; changes only through `/change
 
 | ID  | Epic | Goal | Covers | Depends on | Status |
 | --- | ---- | ---- | ------ | ---------- | ------ |
-| E01 | [Foundation](E01-foundation/epic.md) | A running, tested empty app on the developer's machine with every tooling command | NFR6, NFR2 | none | planned |
+| E01 | [Foundation](E01-foundation/epic.md) | A running, tested empty app on the developer's machine with every tooling command | NFR6, NFR2 | none | in-progress |
 | E02 | [Accounts and access](E02-accounts-access/epic.md) | People sign up, log in, get approved; admins manage roles | US6, US10, US14, NFR4, NFR5 | E01 | planned |
 | E03 | [Write and submit a safety page](E03-write-submit-page/epic.md) | A contributor submits a complete page that stays hidden | US7, R3, R4, R5 | E02 | planned |
 | E04 | [Review and publish](E04-review-publish/epic.md) | An admin reviews a page; approved pages become public | US3, US4, US9, US11, US12, R1 | E03 | planned |

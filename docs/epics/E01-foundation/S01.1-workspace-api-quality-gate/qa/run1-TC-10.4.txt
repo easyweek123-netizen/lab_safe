@@ -1,0 +1,22 @@
+$ docker compose stop db-test
+$ pnpm test:int
+$ pnpm --filter @labsafe/api test:int
+$ vitest run -c vitest.int.config.mts --configLoader runner
+
+ RUN  v4.1.12 /Users/hasan/Documents/lab_safe/apps/api
+
+No test files found, exiting with code 1
+
+include: test/**/*.int.test.ts
+exclude:  **/node_modules/**, **/.git/**
+
+
+⎯⎯⎯⎯⎯⎯ Unhandled Error ⎯⎯⎯⎯⎯⎯⎯
+Error: The test database on localhost:5443 is not running. Run `pnpm db:up` first.
+
+
+
+/Users/hasan/Documents/lab_safe/apps/api:
+[ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @labsafe/api@0.0.0 test:int: `vitest run -c vitest.int.config.mts --configLoader runner`
+Exit status 1
+[ELIFECYCLE] Command failed with exit code 1.

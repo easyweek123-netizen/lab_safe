@@ -1,0 +1,11 @@
+**/dist
+coverage
+pnpm-lock.yaml
+docs/
+.claude/
+.qodo/
+**/*.md
+*.pdf
+playwright-report
+test-results
+.mcp.json

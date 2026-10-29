@@ -1,0 +1,42 @@
+{
+  "name": "@labsafe/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "build": "nest build",
+    "dev": "nest start --watch --exec \"node --env-file-if-exists=../../.env\"",
+    "start": "node dist/main.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "db:migrate": "tsx --env-file-if-exists=../../.env ./node_modules/typeorm/cli.js migration:run -d src/db/cli-data-source.ts",
+    "db:generate": "tsx --env-file-if-exists=../../.env ./node_modules/typeorm/cli.js migration:generate -d src/db/cli-data-source.ts",
+    "test:db:prepare": "tsx scripts/prepare-test-db.ts",
+    "test:int": "vitest run -c vitest.int.config.mts --configLoader runner"
+  },
+  "dependencies": {
+    "@labsafe/shared": "workspace:*",
+    "@nestjs/common": "^11.2.8",
+    "@nestjs/core": "^11.2.8",
+    "@nestjs/platform-express": "^11.2.8",
+    "@nestjs/typeorm": "^11.0.3",
+    "pg": "^8.23.1",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "typeorm": "^0.3.31",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.24",
+    "@nestjs/testing": "^11.2.8",
+    "@swc/cli": "^0.8.2",
+    "@swc/core": "^1.16.20",
+    "@types/node": "^24.19.2",
+    "@types/pg": "^8.23.1",
+    "@types/supertest": "^7.2.1",
+    "supertest": "^7.3.1",
+    "tsx": "^4.23.15",
+    "unplugin-swc": "^2.0.0",
+    "vitest": "^4.1.12"
+  }
+}
