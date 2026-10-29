@@ -1,0 +1,39 @@
+$ concurrently -k "pnpm:dev:*"
+[shared] $ pnpm --filter @labsafe/shared dev
+[api] $ pnpm --filter @labsafe/api dev
+[shared] $ tsup --watch
+[api] $ nest start --watch --exec "node --env-file-if-exists=../../.env"
+[shared] CLI Building entry: src/index.ts
+[shared] CLI Using tsconfig: tsconfig.json
+[shared] CLI tsup v8.5.1
+[shared] CLI Using tsup config: /Users/hasan/Documents/lab_safe/packages/shared/tsup.config.ts
+[shared] CLI Running in watch mode
+[shared] CLI Target: es2023
+[shared] CLI Cleaning output folder
+[shared] ESM Build start
+[shared] CJS Build start
+[shared] ESM dist/index.js 3.73 KB
+[shared] ESM ⚡️ Build success in 10ms
+[shared] CJS dist/index.cjs 5.21 KB
+[shared] CJS ⚡️ Build success in 11ms
+[shared] CLI Watching for changes in "."
+[shared] CLI Ignoring changes in "**/{.git,node_modules}/**" | "dist"
+[shared] DTS Build start
+[api] >  SWC  Running...
+[api] Successfully compiled: 14 files with swc (72.54ms)
+[api] Watching for file changes.
+[shared] DTS ⚡️ Build success in 599ms
+[api] [Nest] 64188  - 10/29/2026, 7:44:03 PM     LOG [NestFactory] Starting Nest application...
+[api] [Nest] 64188  - 10/29/2026, 7:44:03 PM     LOG [InstanceLoader] AppModule dependencies initialized +27ms
+[api] [Nest] 64188  - 10/29/2026, 7:44:03 PM     LOG [InstanceLoader] TypeOrmModule dependencies initialized +0ms
+[api] [Nest] 64188  - 10/29/2026, 7:44:03 PM     LOG [InstanceLoader] TypeOrmCoreModule dependencies initialized +23ms
+[api] [Nest] 64188  - 10/29/2026, 7:44:03 PM     LOG [InstanceLoader] HealthModule dependencies initialized +0ms
+[api] [Nest] 64188  - 10/29/2026, 7:44:03 PM     LOG [RoutesResolver] HealthController {/api}: +2ms
+[api] [Nest] 64188  - 10/29/2026, 7:44:03 PM     LOG [RouterExplorer] Mapped {/api/health, GET} route +2ms
+[api] [Nest] 64188  - 10/29/2026, 7:44:03 PM     LOG [NestApplication] Nest application successfully started +1ms
+[shared] [ELIFECYCLE] Command failed.
+[api] [ELIFECYCLE] Command failed.
+[shared] pnpm run dev:shared exited with code SIGTERM
+--> Sending SIGTERM to other processes..
+[api] pnpm run dev:api exited with code SIGTERM
+[ELIFECYCLE] Command failed with exit code 1.

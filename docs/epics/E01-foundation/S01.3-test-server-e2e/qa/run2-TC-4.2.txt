@@ -1,0 +1,44 @@
+$ pnpm build && pnpm test:db:prepare && tsx e2e/qa-serve.ts
+$ pnpm -r build
+Scope: 4 of 5 workspace projects
+packages/shared build$ tsup
+packages/shared build: CLI Building entry: src/index.ts
+packages/shared build: CLI Using tsconfig: tsconfig.json
+packages/shared build: CLI tsup v8.5.1
+packages/shared build: CLI Using tsup config: /Users/hasan/Documents/lab_safe/packages/shared/tsup.config.ts
+packages/shared build: CLI Target: es2023
+packages/shared build: CLI Cleaning output folder
+packages/shared build: ESM Build start
+packages/shared build: CJS Build start
+packages/shared build: CJS dist/index.cjs 5.97 KB
+packages/shared build: CJS ⚡️ Build success in 7ms
+packages/shared build: ESM dist/index.js 4.23 KB
+packages/shared build: ESM ⚡️ Build success in 7ms
+packages/shared build: DTS Build start
+packages/shared build: DTS ⚡️ Build success in 516ms
+packages/shared build: DTS dist/index.d.ts  7.23 KB
+packages/shared build: DTS dist/index.d.cts 7.23 KB
+packages/shared build: Done
+apps/api build$ nest build
+apps/web build$ vite build
+apps/web build: vite v8.3.5 building client environment for production...
+apps/web build: transforming...
+apps/web build: ✓ 239 modules transformed.
+apps/web build: rendering chunks...
+apps/web build: computing gzip size...
+apps/web build: dist/index.html                   0.39 kB │ gzip:   0.26 kB
+apps/web build: dist/assets/index-BbRorQVl.css    8.67 kB │ gzip:   2.52 kB
+apps/web build: dist/assets/index-BIYeRjP4.js   436.33 kB │ gzip: 134.28 kB
+apps/web build: ✓ built in 174ms
+apps/web build: Done
+apps/api build: >  SWC  Running...
+apps/api build: Successfully compiled: 18 files with swc (52.1ms)
+apps/api build: Done
+$ pnpm --filter @labsafe/api test:db:prepare
+$ tsx scripts/prepare-test-db.ts
+The test database on localhost:5443 is not running. Run `pnpm db:up` first.
+/Users/hasan/Documents/lab_safe/apps/api:
+[ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL] @labsafe/api@0.0.0 test:db:prepare: `tsx scripts/prepare-test-db.ts`
+Exit status 1
+[ELIFECYCLE] Command failed with exit code 1.
+[ELIFECYCLE] Command failed with exit code 1.

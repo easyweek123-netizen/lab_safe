@@ -1,0 +1,12 @@
+$ printf "export const   qaProbe = {a:1,   b:2}
+" > qa-format-probe.ts && pnpm verify
+$ pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm test:int && pnpm build && pnpm docs:check
+$ prettier --check .
+Checking formatting...
+[warn] .playwright-mcp/page-2026-10-29T17-22-34-234Z.yml
+[warn] .playwright-mcp/page-2026-10-29T17-22-44-725Z.yml
+[warn] qa-format-probe.ts
+[warn] Code style issues found in 3 files. Run Prettier with --write to fix.
+[ELIFECYCLE] Command failed with exit code 1.
+[ELIFECYCLE] Command failed with exit code 1.
+(qa-format-probe.ts removed afterwards; the two .playwright-mcp warnings are bug B3)

@@ -1,0 +1,27 @@
+$ pnpm test:db:prepare   (run 1)
+Test database labsafe_test is ready.
+exit 0
+
+$ pnpm test:db:prepare   (run 2)
+Test database labsafe_test is ready.
+exit 0
+
+$ docker compose exec -T db-test psql -U labsafe -d labsafe_test -c "SELECT count(*) FROM lab_rooms" ...
+ rooms 
+-------
+     4
+(1 row)
+
+  code   |      name       
+---------+-----------------
+ LAB-101 | Teaching lab 1
+ LAB-102 | Teaching lab 2
+ LAB-201 | Research lab
+ LAB-202 | Instrument room
+(4 rows)
+
+ migrations 
+------------
+          1
+(1 row)
+

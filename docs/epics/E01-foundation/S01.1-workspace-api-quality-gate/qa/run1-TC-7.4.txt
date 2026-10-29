@@ -1,0 +1,7 @@
+$ env -u DATABASE_URL node apps/api/dist/main.js
+Invalid configuration: DATABASE_URL: is required
+exit code: 1
+
+$ env -u DATABASE_URL PORT=abc NODE_ENV=staging node apps/api/dist/main.js
+Invalid configuration: NODE_ENV: must be one of development, test, production; PORT: must be a whole number from 1 to 65535; DATABASE_URL: is required
+exit code: 1

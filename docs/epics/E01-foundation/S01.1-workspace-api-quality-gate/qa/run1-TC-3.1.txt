@@ -1,0 +1,10 @@
+$ pnpm db:up   (after TC-10.4 had stopped db-test)
+Container labsafe-db-test-1  Created / Started / Healthy; labsafe-db-1 Running / Healthy (no "Pulling" line)
+
+$ docker compose ps
+NAME                COMMAND                  SERVICE             STATUS              PORTS
+labsafe-db-1        "docker-entrypoint.s…"   db                  running (healthy)   0.0.0.0:5442->5432/tcp
+labsafe-db-test-1   "docker-entrypoint.s…"   db-test             running (healthy)   0.0.0.0:5443->5432/tcp
+
+$ docker images postgres:15
+postgres:15 7e9e0c15ce0e created 11 months ago

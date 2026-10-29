@@ -1,0 +1,43 @@
+# Local databases (E01 design §7). Port 5432 is never used on the host: another project uses it.
+# `pull_policy: missing` uses the local postgres:15 image; Docker Hub may be unreachable.
+name: labsafe
+
+services:
+  # Development database: port 5442, data kept in a named volume.
+  db:
+    image: postgres:15
+    pull_policy: missing
+    environment:
+      POSTGRES_USER: labsafe
+      POSTGRES_PASSWORD: labsafe
+      POSTGRES_DB: labsafe
+    ports:
+      - '5442:5432'
+    volumes:
+      - labsafe-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U labsafe -d labsafe']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  # Test database `labsafe_test`: port 5443, data in memory. Only `prepare-test-db` resets it.
+  db-test:
+    image: postgres:15
+    pull_policy: missing
+    environment:
+      POSTGRES_USER: labsafe
+      POSTGRES_PASSWORD: labsafe
+      POSTGRES_DB: labsafe_test
+    ports:
+      - '5443:5432'
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U labsafe -d labsafe_test']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  labsafe-db:

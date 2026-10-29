@@ -1,6 +1,6 @@
 ---
 status: approved
-updated: 2026-10-29
+updated: 2026-10-30
 ---
 
 # LabSafe PRD
@@ -218,7 +218,13 @@ Priority: MUST = built and accepted · SHOULD = only if time allows, via `/chang
 
 ## 8. Acceptance log
 
-*(empty; `/epic-done` appends one entry per epic)*
+### E01 · 2026-10-30 · GREEN
+
+- **NFR6** (interface in English): met. Product acceptance: all user-visible text is English. Evidence: `apps/web/index.html` `lang="en"`; epic QA Run 1 (E01-QA-1, E01-QA-2) shows English copy on home and not-found; S01.2 architect **GREEN** (AC3, AC7–AC9 manual QA); S01.3 e2e smoke TC-6.1–TC-9.1 pass at desktop and 375 px.
+- **NFR2** (mobile at 375 px): met for E01 scope — browser tests run at **375 × 812** and **1280 × 800**. Product acceptance: Playwright projects at both widths; no horizontal scrolling on public pages at 375 px. Evidence: `e2e/playwright.config.ts` desktop + mobile projects; `pnpm e2e` **10 passed** (2026-10-30); [qa.md](../epics/E01-foundation/qa.md) Run 1 **PASS** (17/17), E01-EC-3, E01-QA-5 (`scrollWidth` = `clientWidth` = 375); S01.3 **GREEN** (AC5–AC9).
+- **M1–M6:** none due in E01 (metrics scheduled for search, public pages, assistant, publishing epics, or release per §5).
+- **Exit criteria:** all six ticked in [epic.md](../epics/E01-foundation/epic.md); architect Verification **GREEN** 2026-10-30; [epic-review.md](../epics/E01-foundation/epic-review.md) Round 1 **APPROVE** (F1–F13 unticked, non-blocking).
+- **Gaps:** none for requirements covered by E01. Full NFR2 acceptance (usable safety pages at 375 px without horizontal scroll) is proven when instrument pages ship in later epics.
 
 ## 9. Changes
 
