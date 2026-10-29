@@ -2,7 +2,7 @@
 id: FE-02
 story: S01.2
 layer: fe
-status: todo
+status: done
 depends_on: [FE-01]
 covers: [AC7, AC10]
 updated: 2026-10-29
@@ -41,4 +41,8 @@ The home page and the link's destination content (FE-03; TC-7.2 is automated the
 
 ## Implementation notes
 
-<!-- Filled in by the dev: what was done, deviations from this ticket or the design and why. -->
+- **Done:** `NotFoundPage` (`<h1>` "Page not found", the sentence, `<Link to="/">` "Go to the home page" with a visible focus ring and a tap area of at least 40 px) and the child route `{ path: '*', element: <NotFoundPage /> }` under the `AppShell` layout route in `src/App.tsx`. `apps/web/CLAUDE.md` covers every bullet of E01 design §10 and every point of this ticket's step 4; its page list has the `*` row.
+- **Tests:** `src/pages/not-found/NotFoundPage.test.tsx` has TC-7.1 (`renderApp('/does-not-exist')`: heading level 1 "Page not found", the sentence, link "Go to the home page" with `href="/"` inside `main`, and the `banner` with the "LabSafe" link). It passes; TC-3.1 still passes.
+- **By hand:** the Vite dev server with headless Chrome at 375 × 812 on `/does-not-exist` shows the header and the page with no sideways overflow.
+- **Note: until FE-03, `/` also shows the not-found page.** The `*` child matches the empty rest of `/`. FE-03's `index` route ranks higher, so `/` becomes the home page then. TC-3.1 checks only the shell, so it is unaffected.
+- **Additions to `apps/web/CLAUDE.md` beyond the ticket's list** (all from the agent instructions or design §2): forms are validated with the shared schemas; one `h1` per page and a visible keyboard focus; all interface text is English; no CSS files besides `src/index.css`. The page table also has a "Note" column.

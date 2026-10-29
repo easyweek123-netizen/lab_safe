@@ -2,7 +2,7 @@
 id: BE-01
 story: S01.2
 layer: be
-status: todo
+status: done
 depends_on: []
 covers: [AC1, AC2]
 updated: 2026-10-29
@@ -38,4 +38,15 @@ The web app (FE-01 to FE-03). Caching. Any list editing (PRD R4: OUT).
 
 ## Implementation notes
 
-<!-- Filled in by the dev: what was done, deviations from this ticket or the design and why, migration names. -->
+**Done (2026-10-29).** Contract `ListItem`, `LabRoom`, `MetaListsResponse` in `packages/shared/src/schemas/meta.ts`, exported from `src/index.ts`; `meta.test.ts` covers TC-1.3. `MetaModule` (entity `LabRoom`, `MetaService.getLists`, public `MetaController` at `GET /api/meta/lists`) is registered in `AppModule.forRoot`. The service maps every list item and room to a plain object and does not catch repository errors, so the `ErrorFilter` answers 500 `INTERNAL_ERROR` (AC2). `test/meta.int.test.ts` covers TC-1.1, TC-1.2 and TC-2.1 and calls `resetTables()` first, as `apps/api/CLAUDE.md` requires.
+
+**Migrations:** none. The entity matches `CreateLabRooms1793232000000`.
+
+**Differences from the ticket:**
+
+- **`apps/api/src/db/data-source.ts` changed (not in the Files list):** added `uuidExtension: 'pgcrypto'` and `installExtensions: false`. Without them, `@PrimaryGeneratedColumn('uuid')` makes TypeORM run `CREATE EXTENSION IF NOT EXISTS "uuid-ossp"` on every connect, which changes the schema outside migrations. It would also use `uuid_generate_v4()` instead of the migration's `gen_random_uuid()`, which is built into PostgreSQL 13+. Later uuid entities get the same behaviour.
+- **The entity also mirrors the constraint names:** `lab_rooms_pkey`, `@Unique('lab_rooms_code_key')`, `@Check('lab_rooms_code_check')` and `@Check('lab_rooms_name_check')`. Without them, a later `db:generate` would produce a migration that drops and recreates these constraints.
+- **Two tests beyond the ticket's list:**
+  - `TC-1.2 the LabRoom entity matches the migrated lab_rooms table`: TypeORM's schema builder `log()` must report no pending query. This makes the step 2 check permanent, and it is read-only on `labsafe_test`. I confirmed it fails when the `@Unique` is removed.
+  - `TC-1.1 takes no input: a query string changes nothing`: the endpoint has no input, so this stands in for the "invalid input" rule.
+- **No 401/403 test:** no role is refused in this story.

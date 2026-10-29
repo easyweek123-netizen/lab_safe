@@ -2,7 +2,7 @@
 id: FE-01
 story: S01.2
 layer: fe
-status: todo
+status: done
 depends_on: []
 covers: [AC3, AC8, AC9]
 updated: 2026-10-29
@@ -39,4 +39,12 @@ The home and not-found pages, the API client and MSW (FE-02, FE-03). Serving the
 
 ## Implementation notes
 
-<!-- Filled in by the dev: what was done, deviations from this ticket or the design and why. -->
+- **Done:** `@labsafe/web` with every file listed above. Installed: react and react-dom 19.3, react-router 8.5, @tanstack/react-query 5.105, zod 4.6, vite 8.3, @vitejs/plugin-react 6.1, tailwindcss and @tailwindcss/vite 4.3, vitest 4.1 (not 5; E01-D1), jsdom 30.1, @testing-library/react 16.3, user-event 14.6, jest-dom 7.0, @types/react and @types/react-dom 19.3. `eslint-plugin-react-hooks` 7.1 is a root devDependency. pnpm reported no new native builds, so `allowBuilds` is unchanged.
+- **Tests:** `src/App.test.tsx` has TC-3.1 (the `banner` contains the link "LabSafe" with `href="/"`, and there is exactly one `main`) and TC-3.2 (`index.html` is parsed with `DOMParser`: `lang="en"`, the title "LabSafe", the phone viewport). Both pass.
+- **By hand:** `pnpm dev:web` serves the shell on :5173, and `/api/*` is forwarded to :3000 (502 while Nest is stopped). A headless Chromium screenshot at 375 × 812 shows the header with no sideways overflow.
+- **Difference: the layout route has `path: '/'`.** A layout route with no path and no children matches no URL, so `/` showed React Router's "No route matches" error. With `path: '/'`, FE-02's `*` child and FE-03's index child still nest under it unchanged.
+- **Difference: extra devDependencies.** I added `@testing-library/dom` (a peer dependency of Testing Library React 16) and `@types/node` (TC-3.2 reads the file with `node:fs`).
+- **Difference: `tsconfig.json` types.** I used `@testing-library/jest-dom/vitest` (the Vitest matcher types) instead of `@testing-library/jest-dom`, plus `node`. I also added `lib` with DOM.
+- **Difference: the Vite alias is a function of `mode`.** Vitest runs with `mode === 'test'`. I checked that tests resolve `@labsafe/shared` even with `packages/shared/dist` removed. The dev server and the build use the built package.
+- **Difference: ESLint.** Besides the `apps/web/**/*.{ts,tsx}` block (react-hooks `flat.recommended` and browser globals), a small block gives `apps/web/vite.config.ts` Node globals, because it runs in Node.
+- **Difference: test file paths.** TC-3.2 builds the path with `import.meta.dirname`. jsdom replaces the global `URL`, so `new URL(..., import.meta.url)` is not accepted by `readFileSync`.

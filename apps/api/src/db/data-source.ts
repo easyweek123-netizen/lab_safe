@@ -15,6 +15,10 @@ export function dataSourceOptions(url: string): DataSourceOptions {
     migrations: ALL_MIGRATIONS,
     migrationsTableName: 'migrations',
     synchronize: false,
+    // Generated UUIDs use `gen_random_uuid()` (built into PostgreSQL 13+), as the migrations do.
+    // Never run `CREATE EXTENSION` on connect: that would change the schema outside migrations.
+    uuidExtension: 'pgcrypto',
+    installExtensions: false,
     extra: { connectionTimeoutMillis: 3000 },
   };
 }

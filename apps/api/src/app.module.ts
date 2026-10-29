@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_CONFIG, type AppConfig } from './common/config';
 import { dataSourceOptions } from './db/data-source';
 import { HealthModule } from './modules/health/health.module';
+import { MetaModule } from './modules/meta/meta.module';
 
 @Module({})
 export class AppModule {
@@ -18,6 +19,7 @@ export class AppModule {
           autoLoadEntities: true,
         }),
         HealthModule,
+        MetaModule,
       ],
       providers: [{ provide: APP_CONFIG, useValue: config }],
       exports: [APP_CONFIG],

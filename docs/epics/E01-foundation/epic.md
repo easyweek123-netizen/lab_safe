@@ -47,7 +47,7 @@ Each one can be checked by the user, in a browser or by running a command.
 | ID  | Story | Type | Covers | Status |
 | --- | ----- | ---- | ------ | ------ |
 | S01.1 | [Workspace, API skeleton and quality gate](S01.1-workspace-api-quality-gate/story.md) | feature | none (base for NFR6, NFR2) | done |
-| S01.2 | [Web app shell and home page](S01.2-web-shell-home/story.md) | feature | NFR6, NFR2 | draft |
+| S01.2 | [Web app shell and home page](S01.2-web-shell-home/story.md) | feature | NFR6, NFR2 | done |
 | S01.3 | [One-origin test server and end-to-end tests](S01.3-test-server-e2e/story.md) | feature | NFR2, NFR6 | draft |
 
 ## Change requests
