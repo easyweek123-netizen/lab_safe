@@ -170,7 +170,7 @@ describe('ErrorFilter', () => {
     });
 
     it('F2 reads statusCode when an error has no status', () => {
-      const error = Object.assign(new Error('unsupported'), { statusCode: 415 });
+      const error = Object.assign(new Error('unsupported'), { statusCode: 415, expose: true });
 
       const { status, body } = catchWith(error);
 
@@ -179,8 +179,8 @@ describe('ErrorFilter', () => {
     });
 
     it('F2 maps a non-Nest error with status 400 or 404 like the Nest exceptions', () => {
-      const badJson = Object.assign(new Error('Unexpected token'), { status: 400 });
-      const missing = Object.assign(new Error('gone'), { statusCode: 404 });
+      const badJson = Object.assign(new Error('Unexpected token'), { status: 400, expose: true });
+      const missing = Object.assign(new Error('gone'), { statusCode: 404, expose: true });
 
       expect(catchWith(badJson).body).toEqual({
         statusCode: 400,
@@ -197,8 +197,8 @@ describe('ErrorFilter', () => {
     it('F2 still answers a 5xx HttpException or a non-4xx status with a generic 500', () => {
       for (const exception of [
         new ServiceUnavailableException('db down'),
-        Object.assign(new Error('odd status'), { status: 302 }),
-        Object.assign(new Error('not a number'), { status: '403' }),
+        Object.assign(new Error('odd status'), { status: 302, expose: true }),
+        Object.assign(new Error('not a number'), { status: '403', expose: true }),
       ]) {
         const { status, body } = catchWith(exception);
 
@@ -208,6 +208,26 @@ describe('ErrorFilter', () => {
           code: 'INTERNAL_ERROR',
           message: 'Something went wrong.',
         });
+      }
+      expect(loggerError).toHaveBeenCalledTimes(3);
+      expect(loggerWarn).not.toHaveBeenCalled();
+    });
+
+    it('TC-6.2 answers an error with a 4xx status but no expose flag (an outbound SDK 401) with a generic 500', () => {
+      for (const exception of [
+        Object.assign(new Error('LLM API key invalid'), { status: 401 }),
+        { status: 401 },
+        Object.assign(new Error('upstream forbidden'), { statusCode: 403, expose: false }),
+      ]) {
+        const { status, body } = catchWith(exception);
+
+        expect(status).toBe(500);
+        expect(body).toEqual({
+          statusCode: 500,
+          code: 'INTERNAL_ERROR',
+          message: 'Something went wrong.',
+        });
+        expect(JSON.stringify(body)).not.toContain('LLM');
       }
       expect(loggerError).toHaveBeenCalledTimes(3);
       expect(loggerWarn).not.toHaveBeenCalled();

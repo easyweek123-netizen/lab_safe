@@ -16,6 +16,21 @@ const REFUSED_URLS = [
     'a database name that only starts with labsafe_test',
     'postgres://labsafe:labsafe@localhost:5443/labsafe_test2',
   ],
+  [
+    'a query parameter that overrides the port',
+    'postgres://labsafe:labsafe@localhost:5443/labsafe_test?port=5442',
+  ],
+  [
+    'a query parameter that overrides the host',
+    'postgres://labsafe:labsafe@localhost:5443/labsafe_test?host=db.example.com',
+  ],
+  ['an empty query string', 'postgres://labsafe:labsafe@localhost:5443/labsafe_test?'],
+  ['a hash', 'postgres://labsafe:labsafe@localhost:5443/labsafe_test#x'],
+  ['a remote host', 'postgres://labsafe:labsafe@db.example.com:5443/labsafe_test'],
+  [
+    'a host that only starts with localhost',
+    'postgres://labsafe:labsafe@localhost.evil:5443/labsafe_test',
+  ],
 ] as const;
 
 describe('assertTestDatabase', () => {
@@ -39,6 +54,12 @@ describe('assertTestDatabase', () => {
     expect(TEST_DATABASE_URL).toBe('postgres://labsafe:labsafe@localhost:5443/labsafe_test');
     expect(() =>
       assertTestDatabase('postgres://labsafe:labsafe@localhost:5443/labsafe_test'),
+    ).not.toThrow();
+  });
+
+  it('TC-10.2 accepts the test database on 127.0.0.1', () => {
+    expect(() =>
+      assertTestDatabase('postgres://labsafe:labsafe@127.0.0.1:5443/labsafe_test'),
     ).not.toThrow();
   });
 });

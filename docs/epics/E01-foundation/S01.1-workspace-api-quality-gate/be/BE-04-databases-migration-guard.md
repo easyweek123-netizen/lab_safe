@@ -5,7 +5,7 @@ layer: be
 status: done
 depends_on: [BE-03]
 covers: [AC3, AC9, AC10]
-updated: 2026-10-29
+updated: 2026-11-16
 ---
 
 # BE-04 Databases, lab rooms migration and test-database guard
@@ -61,3 +61,4 @@ TypeORM in the Nest app, `resetTables`, integration tests (BE-05). The e2e seed 
     - A read-only query on `labsafe_test` showed exactly the 4 rooms, one migration record and the constraints `lab_rooms_pkey`, `lab_rooms_code_key`, `lab_rooms_code_check` and `lab_rooms_name_check`.
   - `pnpm db:migrate` was not run against the development database.
 - **Differences from the ticket:** none in behaviour. Extras: the error classes `NotTestDatabaseError` and `TestDatabaseNotRunningError`, the exported `TEST_DB_NOT_RUNNING_MESSAGE`, and the extra test above.
+- **Epic review fix F1 (2026-11-16):** the guard is stricter than step 7. It also refuses any URL that contains `?` or `#` (because `pg` lets query parameters such as `?port=` or `?host=` override the URL's own parts) and any host other than `localhost` or `127.0.0.1`. The message now says "on port 5443 of localhost". TC-10.1's `REFUSED_URLS` gained six URLs (`?port=5442`, `?host=…`, an empty `?`, a `#` hash, a remote host, `localhost.evil`), each checked against both `assertTestDatabase` and `prepareTestDb`; one more TC-10.2 test accepts `127.0.0.1`.

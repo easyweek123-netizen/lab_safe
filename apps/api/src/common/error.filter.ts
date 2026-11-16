@@ -16,16 +16,20 @@ interface JsonResponse {
 
 /**
  * The client-error status of an exception: an `HttpException`'s status, or the numeric
- * `status`/`statusCode` that Express middleware sets (for example body-parser's
- * `PayloadTooLargeError`, 413). `undefined` unless it is a 4xx.
+ * `status`/`statusCode` of an `http-errors` request error that Express middleware raises with
+ * `expose === true` (for example body-parser's `PayloadTooLargeError`, 413). Any other object
+ * with a 4xx `status` (for example an outbound SDK's 401) is not the client's fault and stays a
+ * 500. `undefined` unless it is a 4xx.
  */
 function clientErrorStatus(exception: unknown): number | undefined {
   let status: unknown;
   if (exception instanceof HttpException) {
     status = exception.getStatus();
   } else if (typeof exception === 'object' && exception !== null) {
-    const candidate = exception as { status?: unknown; statusCode?: unknown };
-    status = typeof candidate.status === 'number' ? candidate.status : candidate.statusCode;
+    const candidate = exception as { status?: unknown; statusCode?: unknown; expose?: unknown };
+    if (candidate.expose === true) {
+      status = typeof candidate.status === 'number' ? candidate.status : candidate.statusCode;
+    }
   }
   return typeof status === 'number' && Number.isInteger(status) && status >= 400 && status < 500
     ? status

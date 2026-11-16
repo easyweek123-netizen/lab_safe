@@ -5,7 +5,7 @@ layer: be
 status: done
 depends_on: [BE-02]
 covers: [AC6, AC8]
-updated: 2026-10-29
+updated: 2026-11-16
 ---
 
 # BE-03 Error format and validation pipe
@@ -50,3 +50,4 @@ The integration test for an unknown route (TC-6.1, BE-05). Guards and error code
 - Note for S01.3: paths outside `/api` (for example `/nope`) also get the JSON 404 today; serving the web app there is S01.3's job.
 - No deviations from the ticket or design. No migrations.
 - Review fix F2 (2026-10-29): replaces the "any other `HttpException` status also becomes 500" behaviour above. Every 4xx, whether a Nest `HttpException` or an error with a numeric 4xx `status`/`statusCode` (for example body-parser's `PayloadTooLargeError`, 413), now keeps its status: 400 → `VALIDATION_FAILED`, 404 → `NOT_FOUND`, any other 4xx → new shared code `REQUEST_REJECTED` with `The request was rejected.`, logged only at `warn`. 5xx and everything else stay 500 `INTERNAL_ERROR` with an `error` log. `REQUEST_REJECTED` was added to `ErrorCode` in `packages/shared/src/errors.ts`; it is a deviation from step 1's enum and from design doc §8, which do not list it. Tests: six `F2 …` unit tests in `error.filter.test.ts` and one `F2 …` integration test in `test/foundation.int.test.ts` (a 200 kB JSON body → 413).
+- Epic review fix F2 (2026-11-16): narrows the review fix above. A non-`HttpException` error keeps its 4xx `status`/`statusCode` only when it also has `expose === true` (the flag `http-errors` sets on Express request errors such as body-parser's). Any other object with a 4xx status, for example a later outbound SDK's 401, becomes 500 `INTERNAL_ERROR` with an `error` log. The existing `F2 …` unit tests now set `expose: true` on their non-Nest errors; a new `TC-6.2 …` unit test checks that `{ status: 401 }`, an `Error` with `status: 401`, and one with `expose: false` all give 500.
