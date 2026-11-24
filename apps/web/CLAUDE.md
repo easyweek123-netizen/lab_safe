@@ -1,54 +1,53 @@
 # Web coding rules (`apps/web`)
 
-React 19, React Router 8, TanStack Query 5, Tailwind 4, Zod 4 from `@labsafe/shared`, built with Vite 8. Design: `docs/technical-design/design-doc.md` and `docs/epics/E01-foundation/design.md`.
+React 19, React Router 8, TanStack Query 5, Tailwind 4, Zod 4 from `@labsafe/shared`, built with Vite 8.
 
-## List of web pages
+## Pages
 
-Every route of the app, in `src/App.tsx`. Each epic adds its rows when it adds a page.
+Every route is in `src/App.tsx`. Add a row when you add a page.
 
-| Route | Page folder           | Epic | Story | Note |
-| ----- | --------------------- | ---- | ----- | ---- |
-| `/`   | `src/pages/home/`      | E01  | S01.2 | The lab rooms and hazard types from `GET /api/meta/lists`; replaced by search in E06 |
-| `*`   | `src/pages/not-found/` | E01  | S01.2 | Every unknown address, inside the app shell |
+| Route | Folder | Story | Note |
+| ----- | ------ | ----- | ---- |
+| `/` | `src/pages/home/` | S01.2 | Lab rooms and hazard types; replaced by search in E06 |
+| `*` | `src/pages/not-found/` | S01.2 | Every unknown address |
 
-## Code layout
+## Layout
 
-- **Pages:** one folder per route in `src/pages/<name>/`, with `<Name>Page.tsx` and its test. Every page is a child of the `AppShell` layout route in `src/App.tsx`, so the header is always shown.
-- **Shared UI:** in `src/components/`.
+```
+src/
+  App.tsx              routes, all under the AppShell layout
+  api/                 client.ts and one TanStack Query hook file per resource
+  components/          UI shared by several pages
+  pages/<name>/        <Name>Page.tsx, its own components, and their tests
+  test/                MSW handlers, render helper, setup
+```
 
-## Data access
+## Coding rules
 
-- **Only through TanStack Query hooks in `src/api/`.** A hook calls `apiGet` from `src/api/client.ts`, which validates every response with the shared Zod schema from `@labsafe/shared`; a body that does not match is an error.
-- **Never call `fetch` directly from a component** or a page.
-- **Forms** are validated with the shared schemas.
-
-## Screens
-
-- **Every page handles loading, empty, error and success** explicitly (see the story's "UI states" table). Status text uses `role="status"`; errors use `role="alert"`.
-- **Mobile-first at 375 px:** nothing scrolls sideways, text is at least 16 px, buttons are easy to tap.
-- **Accessible markup:** a label on every input, alt text on every image, headings in order (one `h1` per page), everything reachable by keyboard with a visible focus.
-- **Hazard information is never shown by colour alone;** always add text.
-- **All interface text is English.**
-- **Tailwind only,** no other CSS framework and no other CSS files besides `src/index.css`.
+- **Components:** function components only; one component per file, named like the file (`LoginForm.tsx`). A component used by one page lives in that page's folder.
+- **Server data:** only through TanStack Query hooks in `src/api/`. Query keys are arrays (`['pages', id]`). Changes use `useMutation` and then `invalidateQueries`. Never copy server data into `useState`.
+- **Network:** only `src/api/client.ts` calls `fetch`, and it validates every response with the shared Zod schema.
+- **State:** `useState` for local UI state. No global state library.
+- **Effects:** no `useEffect` for fetching data or computing values; compute them during render.
+- **Forms:** validate with the shared schema on submit; show the server's `fields` errors next to their inputs.
+- **Types:** no `any`; props are typed; data types come from `@labsafe/shared`.
+- **Lists:** keys are stable ids, never the index.
+- **Routing:** routes only in `App.tsx`; links with `<Link>`.
+- **Styling:** Tailwind classes only; no inline styles and no other CSS files besides `src/index.css`.
+- **States:** every page handles loading (`role="status"`), empty, error (`role="alert"`) and success.
+- **Accessibility:** a label on every input, alt text on every image, one `h1` per page and headings in order, everything reachable by keyboard with a visible focus.
+- **Phone first:** at 375 px nothing scrolls sideways, text is at least 16 px, buttons are easy to tap.
+- **Hazards** are never shown by colour alone; always add text. All text is English.
 
 ## Tests
 
-- **Component tests:** `*.test.tsx` next to the code, with Vitest and Testing Library. Render pages with `renderApp(path)` from `src/test/render.tsx` (the real routes in a memory router).
-- **Network:** MSW handlers in `src/test/msw.ts`, with fixtures built from the shared schemas (`Schema.parse({…})`). Unhandled requests fail the test; override a handler per test with `server.use(…)`.
-- **Find elements by role or label,** and assert what the user sees.
-- **Names:** every test title starts with its test-case identifier, for example `it('TC-7.1 shows "Page not found" …', …)`.
-
-## End-to-end tests
-
-- **Specs go in `e2e/tests/*.spec.ts`** (Playwright, Chromium only). Every spec runs in two projects: `desktop` (1280 × 800) and `mobile` (375 × 812). Playwright starts the built app on :4100 with the test settings of `e2e/test-env.ts`, against a freshly reset `labsafe_test`.
-- **Titles start with the test-case identifier,** for example `test('TC-7.1 home has no horizontal scroll', …)`.
-- **Use role-based locators** (`getByRole`, `getByLabel`) and web-first assertions (`toBeVisible`, `toHaveURL`, `toHaveTitle`); no CSS selectors for content.
-- **Every new page gets a no-horizontal-scroll check at 375 px** (NFR2): once its content is visible, `document.documentElement.scrollWidth <= document.documentElement.clientWidth`.
-- **Run them with `pnpm e2e`;** never at the same time as `pnpm verify` (both reset `labsafe_test`). The HTML report is written to `e2e/playwright-report/`.
+- **Component tests:** `*.test.tsx` next to the component, with Vitest and Testing Library. Render pages with `renderApp(path)` from `src/test/render.tsx`. Mock the network with MSW (`src/test/msw.ts`); unhandled requests fail.
+- **End-to-end tests:** `e2e/tests/*.spec.ts` with Playwright, run at desktop width and at 375 px. Every new page gets a no-sideways-scroll check.
+- **Titles** start with the story and acceptance criterion: `S02.1 AC7 shows "Page not found"`. E01's tests keep their `TC-…` titles.
+- Find elements by role or label; assert what the user sees.
 
 ## Commands
 
-- `pnpm --filter @labsafe/web test`: the web component tests.
-- `pnpm dev`: the API on :3000 and the web app on :5173 (the Vite proxy forwards `/api`).
-- `pnpm verify`: the whole quality gate (format check, lint, type check, unit tests, integration tests, build, docs check). It must pass before a ticket is done.
-- `pnpm e2e`: build, reset `labsafe_test`, then the Playwright specs in both projects. Install Chromium once with `pnpm exec playwright install chromium`.
+- `pnpm --filter @labsafe/web test`: component tests.
+- `pnpm dev`: API on :3000, web on :5173.
+- `pnpm e2e`: end-to-end tests (never at the same time as `pnpm verify`).

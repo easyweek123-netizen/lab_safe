@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { ConfigError, loadConfig } from './config';
+import { ConfigError, loadConfig } from '../../../src/common/config';
 
 const DATABASE_URL = 'postgres://labsafe:labsafe@localhost:5442/labsafe';
 

@@ -1,55 +1,63 @@
 ---
-status: draft
+status: draft # draft | approved (set by /build-epic)
 updated: YYYY-MM-DD
 ---
 
-# E02 design
+# E02 technical design
 
-**Covers:** US6, US10, US14 · **Depends on:** E01 · Keep this at most ~150 lines plus diagrams: decisions and shapes, not detail.
+<!-- architect: about 150 lines plus diagrams. Decisions and shapes, not code. -->
 
 ## Data
+
+<!-- New or changed tables, and where each rule is enforced: a constraint, a transaction or an access check. -->
 
 ```mermaid
 erDiagram
 ```
 
-Migrations, and each invariant with how it is enforced (constraint / transaction / guard).
+## Endpoints
 
-## Contract
+<!-- One row per endpoint. "Who may call" names roles; everyone else is refused. -->
 
-| Method | Path | Auth | Request → Response | Errors |
-| ------ | ---- | ---- | ------------------ | ------ |
+| Method | Path | Who may call | Request → Response | Errors |
+| ------ | ---- | ------------ | ------------------ | ------ |
 
 ## Flows
+
+<!-- A sequence diagram only for flows with more than one step. -->
 
 ```mermaid
 sequenceDiagram
 ```
 
-Only for non-trivial flows.
+## Screens
 
-## Screens and states
+<!-- One row per page. -->
 
-| Route | Screen | States (loading / empty / error / success) | Roles |
-| ----- | ------ | ------------------------------------------ | ----- |
+| Route | Who sees it | Loading | Empty | Error | Success |
+| ----- | ----------- | ------- | ----- | ----- | ------- |
 
-## Authorization matrix
+## Who may do what
 
-| Endpoint / screen | anonymous | pending | contributor | admin |
-| ----------------- | --------- | ------- | ----------- | ----- |
+<!-- One row per endpoint or screen; ✓ allowed, ✗ refused. -->
+
+| Endpoint or screen | anonymous | pending | contributor | admin |
+| ------------------ | --------- | ------- | ----------- | ----- |
 
 ## Decisions
 
-Technical choices for this epic that are expensive to undo later.
+<!-- Only choices that are expensive to undo. -->
 
-| #   | Decision | Why | Alternatives considered |
-| --- | -------- | --- | ----------------------- |
+| #   | Decision | Why | Options considered |
+| --- | -------- | --- | ------------------ |
 
 ## Risks
 
-## Story outline
+## Stories
 
-1. S02.1 … (the demoable outcome) · depends on: none
+<!-- In build order; each one something a user can try. -->
+
+1. S02.1 … · delivers C1 · depends on: none
 
 ## Open questions
 

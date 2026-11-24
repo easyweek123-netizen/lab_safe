@@ -1,12 +1,13 @@
 # Review: S02.1
 
-Tick (`[x]`) the findings `/fix` should handle; unticked ones are left as they are. Add instructions as `> note` lines under a finding.
+<!-- architect. blocker: an acceptance criterion broken, a refused role gets in, data lost or leaked, a test weakened.
+     major: a named rule, edge case or screen state wrong, or a criterion without a real test.
+     minor: anything else; it becomes a known gap. -->
 
 ## Round 1 · YYYY-MM-DD · verdict: CHANGES
 
-Verify: ✅ | ❌ | not available · Scope: uncommitted changes (N files)
+`pnpm verify`: ✅
 
-- [ ] F1 [blocker][be] `path:line`: problem. Fix: suggestion.
-- [ ] F2 [minor][fe] `path:line`: problem. Fix: suggestion.
+- F1 [major][be] `path:line`: problem. Fix: …
 
-Summary: two lines.
+Where to look first: `path` (why)

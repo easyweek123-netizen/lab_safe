@@ -1,38 +1,63 @@
 ---
 id: E02
-title: Accounts & access
-status: planned
-covers: []
+title: Accounts and access
+status: planned # planned | in-progress | done
+covers: [] # requirement identifiers from docs/prd/PRD.md
 depends_on: []
 branch:
 updated: YYYY-MM-DD
 ---
 
-# E02 Accounts & access
+# E02 Accounts and access
 
 ## Goal
+
+<!-- product-manager: one or two sentences, in the user's words. -->
+
+## Requirements
+
+<!-- product-manager: one row per requirement in `covers`. -->
+
+| Requirement | In this epic | Roles | The user sees |
+| ----------- | ------------ | ----- | ------------- |
+
+## Rules
+
+<!-- product-manager: rules the data must follow, and who must be refused. -->
 
 ## Scope
 
 ## Out of scope
 
-## Exit criteria
+## Acceptance criteria
 
-Each one can be checked by the user, in a browser or by running a command.
+<!-- product-manager: plain English, one line each, checkable in a browser or by a command. -->
 
-- [ ] …
+- [ ] **C1** …
+
+## Requirement changes
+
+<!-- product-manager: only if a requirement must change: before, after, why. Otherwise leave empty. -->
 
 ## Stories
 
-| ID  | Story | Type | Covers | Status |
-| --- | ----- | ---- | ------ | ------ |
+<!-- architect: one row per story. /build-epic updates the status. -->
 
-## Change requests
+| ID  | Story | Delivers | Covers | Status |
+| --- | ----- | -------- | ------ | ------ |
+
+## Build report
+
+<!-- /build-epic rewrites this section on every run. -->
 
 ## Verification
 
-<!-- architect, /epic-done: **GREEN** | **RED** · YYYY-MM-DD, then evidence bullets -->
+<!-- architect, /complete-epic: **GREEN** or **RED** · date, then the evidence. -->
 
 ## Open questions
 
+<!-- Each question with the simple option chosen until the user answers. -->
+
 ## Changes
+
+<!-- One line per change: date · what changed · why (including the user's design feedback). -->

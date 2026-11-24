@@ -9,3 +9,5 @@ docs/
 playwright-report
 test-results
 .mcp.json
+.playwright-mcp/
+.qa-runs/

@@ -1,17 +1,14 @@
 # QA: S02.1
 
-Tick (`[x]`) the bugs `/fix` should handle. Add instructions as `> note` lines under a bug.
+<!-- qa-engineer. PASS only if pnpm e2e passed and no blocker or major bug is open. -->
 
-## Run 1 · YYYY-MM-DD · verdict: PASS | FAIL
+## Run 1 · YYYY-MM-DD · verdict: PASS
 
-Application: `pnpm qa:serve` (fresh test database) · Address: …
+`pnpm e2e`: N passed
 
-| TC     | Role      | Result | Screenshot                      |
-| ------ | --------- | ------ | ------------------------------- |
-| TC-1.1 | anonymous | ✅     | [img](qa/run1-TC-1.1.png)       |
+| Check               | Role      | Result | Screenshot |
+| ------------------- | --------- | ------ | ---------- |
+| AC1                 | anonymous | ✅     | —          |
+| 375 px and keyboard | anonymous | ✅     | —          |
 
-Bugs:
-
-- [ ] B1 [major][fe] Steps: … → expected … / actual …
-
-Specs added: `…` · `pnpm e2e`: N passed
+- B1 [major][fe] Steps: … → expected … / actual …

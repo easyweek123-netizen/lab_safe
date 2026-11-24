@@ -1,32 +1,18 @@
 ---
-generated: YYYY-MM-DDTHH:MM
-master: <short sha>
-branch: <current branch>
+generated: YYYY-MM-DD
 ---
 
-# Brief · Mon 2 Nov 2026
+# Brief
 
-## Where we stand
+<!-- product-manager, /complete-epic. One screen. -->
 
-- master @ `<sha>` · last merge: … · master health: ✅ | ❌ | unknown (as of …)
-- Unmerged branches: …
-- Working tree: clean | N files changed (…)
-- Board: E01 ✅ · **E02 in-progress (S02.2 building)** · E03–E07 planned
+- Board: E01 ✅ · E02 ✅ · E03–E08 planned
 - MUST requirements accepted: x / y
 
-## Today
+## Next
 
-1. `<exact command>`: why (rough effort)
-2. …
+1. `<command>`: why.
 
-## Waiting on you
-
-- Findings or bugs to tick · change requests to approve · open questions
+## Known gaps worth fixing
 
 ## Risks
-
-- …
-
-## Tomorrow
-
-<!-- written by /eod -->

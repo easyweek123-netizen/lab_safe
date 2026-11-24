@@ -14,3 +14,5 @@ e2e/.auth/
 *.log
 .qodo/
 .claude/settings.local.json
+.playwright-mcp/
+.qa-runs/

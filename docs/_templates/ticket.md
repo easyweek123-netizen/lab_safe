@@ -1,28 +1,35 @@
 ---
 id: BE-01
 story: S02.1
-layer: be
-status: todo
-depends_on: []
-covers: [AC1, AC2]
+layer: be # be | fe, matching the folder
+status: todo # todo | doing | done
+depends_on: [] # tickets of this story that must be done first
+covers: [AC1, AC2] # acceptance criteria of this story
 updated: YYYY-MM-DD
 ---
 
 # BE-01 <title>
 
-**Goal:** one sentence. **Automates:** TC-1.2, TC-2.1. **Contract:** [story.md § API contract](../story.md#api-contract)
+**Goal:** one sentence. **Contract:** [story.md](../story.md#api-contract)
 
 ## Files
 
 - create `…`
 - change `…`
 
-## Approach
+## Constraints
 
-1. …
+<!-- What, not how: the rules that apply and the code whose pattern to follow. No code. -->
+
+- Follow the pattern in `…`.
+- Schema change: no | yes, migration `<Name>`.
 
 ## Out of scope
 
 ## Implementation notes
 
-<!-- Filled in by the dev: what was done, deviations from this ticket or the design and why, migration names. -->
+<!-- The developer fills this in. -->
+
+**Files changed:**
+
+**Differences from the ticket:**

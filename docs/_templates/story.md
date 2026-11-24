@@ -3,40 +3,41 @@ id: S02.1
 epic: E02
 title: Sign up and log in
 type: feature
-status: draft
-covers: [US6]
+status: draft # draft | building | in-review | qa | done
+covers: [US6] # a subset of the epic's covers
 updated: YYYY-MM-DD
 ---
 
 # S02.1 Sign up and log in
 
-**As a** … **I want** … **so that** … · Design: [design.md](../design.md)
+**As a** … **I want** … **so that** … · Delivers: C1 · Design: [design.md](../design.md)
 
 ## Acceptance criteria
 
-- **AC1** Given … When … Then …
-- **AC2** Given … When … Then …
+<!-- architect: cover the successful path, invalid input, loading, empty and error states,
+     and every role that must be refused. Each one must be testable. -->
 
-## Test cases
-
-| TC     | AC  | Role      | Preconditions / data | Steps | Expected      | Type      | Ticket |
-| ------ | --- | --------- | -------------------- | ----- | ------------- | --------- | ------ |
-| TC-1.1 | AC1 | anonymous | none                 | 1. …  | …             | auto: e2e | FE-01  |
-| TC-1.2 | AC1 | anonymous | email already taken  | …     | 409 + message | auto: api | BE-01  |
-| TC-2.1 | AC2 | anonymous | phone (375 px)       | …     | readable form | manual    | —      |
+- **AC1** Given …, When …, Then ….
 
 ## API contract
 
-Shared schemas (`<package/file>`): `SignUpRequest { email, password }`, …
+<!-- Exact schema names and fields in packages/shared. -->
 
-| Method | Path | Auth | Request → Response | Status codes |
-| ------ | ---- | ---- | ------------------ | ------------ |
+| Method | Path | Who may call | Request → Response | Errors |
+| ------ | ---- | ------------ | ------------------ | ------ |
 
 ## UI states
 
+| Route | Loading | Empty | Error | Success |
+| ----- | ------- | ----- | ----- | ------- |
+
+## Approach
+
+<!-- The modules and files this story touches, and the existing code whose pattern to follow. -->
+
 ## Tickets
 
-In build order (BE first; the first BE ticket implements the contract):
+<!-- Backend first; the first backend ticket creates the contract. -->
 
 1. [BE-01 …](be/BE-01-slug.md)
 2. [FE-01 …](fe/FE-01-slug.md)
@@ -45,8 +46,10 @@ In build order (BE first; the first BE ticket implements the contract):
 
 ## Known gaps
 
+<!-- /build-epic: minor findings and bugs left unfixed, with their identifiers. -->
+
 ## Verification
 
-<!-- architect, /story-done: **GREEN** | **RED** · YYYY-MM-DD, then evidence bullets (file:line) -->
+<!-- architect, on APPROVE: **GREEN** · date, then the evidence (file:line). -->
 
 ## Changes

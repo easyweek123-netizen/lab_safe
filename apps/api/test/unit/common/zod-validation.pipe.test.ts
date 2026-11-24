@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { AppException } from './app.exception';
-import { ZodValidationPipe } from './zod-validation.pipe';
+import { AppException } from '../../../src/common/app.exception';
+import { ZodValidationPipe } from '../../../src/common/zod-validation.pipe';
 
 const pipe = new ZodValidationPipe(z.object({ name: z.string().min(1), count: z.number() }));
 

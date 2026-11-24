@@ -9,8 +9,8 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { AppException } from './app.exception';
-import { ErrorFilter } from './error.filter';
+import { AppException } from '../../../src/common/app.exception';
+import { ErrorFilter } from '../../../src/common/error.filter';
 
 interface Recorded {
   status?: number;

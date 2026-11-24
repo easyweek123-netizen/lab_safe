@@ -1,6 +1,6 @@
 ---
 status: approved
-updated: 2026-10-30
+updated: 2026-11-16
 ---
 
 # LabSafe design doc
@@ -365,7 +365,7 @@ Every error response looks like this:
 | 413 / 415 | PHOTO_TOO_LARGE · PHOTO_TYPE | Photo upload |
 | 429 | ASSISTANT_BUSY | R2 limit reached, or the provider is unavailable |
 
-The error codes are a shared enum in `packages/shared`. A global Nest exception filter maps everything else to 500 with no internal details.
+The error codes are a shared enum in `packages/shared`. E01 also defines 503 `SERVICE_UNAVAILABLE` (health check), `REQUEST_REJECTED` (any other client error that has no specific code yet, with a generic message) and 500 `INTERNAL_ERROR`. The global Nest exception filter keeps a client error's 4xx status only for an `HttpException` or an Express request error with `expose === true` (for example the body parser's 413); everything else, including another library's error that carries a 4xx `status`, becomes 500 `INTERNAL_ERROR` with no internal details.
 
 ## 9. Testing strategy and the tooling contract
 
@@ -391,7 +391,7 @@ Each automated test's title starts with its test-case id, for example `it('TC-3.
 | `pnpm qa:serve` | build → `test:db:prepare` → start the built app on :4100 with the same test settings as e2e, print `QA server: http://localhost:4100`, keep running |
 | `pnpm docs:check` | `node .claude/tools/docs-check.mjs` |
 
-Extra scripts: `db:migrate` and `db:seed` (development database; each run needs the user's approval) and `eval:assistant`. `pnpm verify` and `pnpm e2e` both use `labsafe_test`, so they never run at the same time.
+Extra scripts: `db:migrate` and `db:seed` (development database; each run needs the user's approval) and `eval:assistant`. `pnpm verify`, `pnpm e2e` and `pnpm qa:serve` all use `labsafe_test`, so they never run at the same time. Every command that resets `labsafe_test` goes through one guard that accepts only database `labsafe_test` on port 5443 of `localhost` / `127.0.0.1`, with no query string or hash (E01 design §6).
 
 ## 10. Environments, ports, configuration
 
@@ -439,3 +439,4 @@ Extra scripts: `db:migrate` and `db:seed` (development database; each run needs 
 ## 13. Changes
 
 - **2026-10-30** (E01 `/epic-done`): §9 tooling table aligned with the built root scripts — `db:up` uses `--wait`, `typecheck` builds shared first, `dev` loads `.env` from the repository root, and `pnpm e2e` / `pnpm qa:serve` run **build → `test:db:prepare`** (not reset-then-build). E01 has no e2e seed or assistant env yet; those steps are noted for later epics.
+- **2026-11-16** (E01 design update after the fixes of epic-review F1, F2): §8 names the E01 codes (`SERVICE_UNAVAILABLE`, `REQUEST_REJECTED`, `INTERNAL_ERROR`) and says a non-`HttpException` error keeps its 4xx status only with `expose === true`; §9 adds `pnpm qa:serve` to the commands that share `labsafe_test` and describes the test-database guard (no `?`/`#`, `localhost`/`127.0.0.1` only, `labsafe_test`, port 5443).

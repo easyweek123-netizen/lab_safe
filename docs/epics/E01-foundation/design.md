@@ -1,6 +1,6 @@
 ---
 status: approved
-updated: 2026-10-30
+updated: 2026-11-16
 ---
 
 # E01 design
@@ -38,12 +38,12 @@ packages/shared/        src/lists.ts · src/errors.ts · src/schemas/{health,met
 apps/api/               src/main.ts · src/app.module.ts · src/app.setup.ts
                         src/common/   config.ts · error.filter.ts · zod-validation.pipe.ts · app.exception.ts
                         src/modules/  health/ · meta/
-                        src/db/       data-source.ts · migrations/
+                        src/db/       data-source.ts · cli-data-source.ts (TypeORM CLI only) · migrations/ (+ index.ts: ALL_MIGRATIONS)
                         vitest.config.mts · vitest.int.config.mts
-                        scripts/      prepare-test-db.ts · test-db-guard.ts
-                        test/         global-setup.ts · setup-file.ts · helpers.ts · *.int.test.ts
+                        scripts/      prepare-test-db.ts · test-db-guard.ts (+ test-db-guard.test.ts)
+                        test/         global-setup.ts · setup-file.ts · helpers.ts · *.int.test.ts · fixtures/web-dist/
                         CLAUDE.md
-apps/web/               src/main.tsx · src/App.tsx (routes) · src/pages/{home,not-found}/ · src/components/ · src/api/
+apps/web/               src/main.tsx · src/App.tsx (routes) · src/pages/{home,not-found}/ · src/components/ · src/api/ · src/test/ (MSW, render, setup)
                         CLAUDE.md
 e2e/                    package.json (@labsafe/e2e) · test-env.ts · qa-serve.ts
                         playwright.config.ts · tsconfig.json · tests/smoke.spec.ts
@@ -62,7 +62,7 @@ erDiagram
 
 - **One migration:** `CreateLabRooms` creates the table and inserts four placeholder rooms (PRD §7 says the real rooms replace them before the demo). `synchronize` is always `false`.
 - **Fixed lists** (PRD §4.2) are **not** tables. They live in `packages/shared/src/lists.ts` as `as const` arrays of `{ value, label }`. The value is an upper-case code (for example `HOT_SURFACE`); the label is English. A shared `HazardLevel` (LOW, MEDIUM, HIGH) is defined there too. The CHECK constraints that use these lists come with the tables that need them (E03).
-- **Migrations run** through `src/db/data-source.ts`: from the CLI for the development database (`pnpm db:migrate`, which asks the user first), and from code for the test database (section 6).
+- **Migrations run** with the options from `src/db/data-source.ts`: from the TypeORM CLI through `src/db/cli-data-source.ts` for the development database (`pnpm db:migrate`, which asks the user first), and from code for the test database (section 6).
 
 ## 4. Contract
 
@@ -72,7 +72,7 @@ erDiagram
 | GET | /api/meta/lists | Public | none → `MetaListsResponse` `{ hazardTypes, protectiveEquipment, hazardPictograms, categories, hazardLevels, labRooms }` | 500 |
 | any | /api/<unknown> | Public | none | 404 `NOT_FOUND` in the shared error format |
 
-- **Error format** (design doc §8): `ErrorResponse` and the `ErrorCode` enum are defined in `packages/shared/src/errors.ts`. A global `ErrorFilter` produces this shape for every error, and never leaks stack traces.
+- **Error format** (design doc §8): `ErrorResponse` and the `ErrorCode` enum are defined in `packages/shared/src/errors.ts`. A global `ErrorFilter` produces this shape for every error, and never leaks stack traces. `AppException` keeps its status and code. A client error (4xx) keeps its status: 404 → `NOT_FOUND`, 400 → `VALIDATION_FAILED`, any other 4xx → `REQUEST_REJECTED` with a generic message and a server-side warning. A client error is an `HttpException`, or an Express request error (`http-errors`) with `expose === true` (for example the body parser's 413). Any other error, including a non-`HttpException` object with a 4xx `status` but no `expose === true` (for example an outbound SDK's 401), becomes 500 `INTERNAL_ERROR`, logged only on the server.
 - **`ZodValidationPipe`** turns shared Zod schemas into `400 VALIDATION_FAILED` with a `fields` list. It is unused by any endpoint in E01, but unit-tested so E02 can rely on it.
 
 ## 5. Tooling commands
@@ -100,7 +100,7 @@ Supporting scripts: `build` (shared → api → web, in dependency order), `test
 
 **Test settings** (not secrets, kept in `e2e/test-env.ts` and reused by `qa:serve`): `DATABASE_URL=postgres://labsafe:labsafe@localhost:5443/labsafe_test`, `PORT=4100`, `NODE_ENV=test`, `WEB_DIST_DIR=apps/web/dist`.
 
-**`prepare-test-db` safety guard:** it refuses to run unless the database name is `labsafe_test` and the port is `5443`. Only then does it drop and recreate the `public` schema, run the migrations and (in later epics) load the e2e seed.
+**Test-database guard** (`scripts/test-db-guard.ts`, `assertTestDatabase`): it refuses any URL that contains `?` or `#` (`pg` lets query parameters such as `?host=` override the URL's own parts), any host other than `localhost` or `127.0.0.1`, any database other than `labsafe_test`, and any port other than `5443`. `prepare-test-db` calls it before connecting, and reads no environment variable (it always uses `TEST_DATABASE_URL`); only then does it drop and recreate the `public` schema, run the migrations and (in later epics) load the e2e seed. `createTestApp()` and `resetTables()` call the same guard.
 
 **Test names** start with the test-case identifier, for example `it('TC-2.1 …')` or `test('TC-3.1 …')`.
 
@@ -113,7 +113,7 @@ sequenceDiagram
   participant PW as Playwright
   Dev->>P: pnpm e2e
   P->>P: build shared → api → web
-  P->>DB: guard (name + port) → drop schema → migrations
+  P->>DB: guard (no ?/#, localhost, name, port) → drop schema → migrations
   P->>PW: playwright test
   PW->>App: webServer: start node apps/api/dist/main.js
   PW->>App: run every spec (desktop and 375 px)
@@ -167,7 +167,7 @@ Accounts arrive in E02, which adds the deny-by-default guard. Until then, both E
 | E01-D1 | Pinned major versions as in section 1 (the newest major at least 3 months old and compatible) | Stable foundation; no major upgrades inside stories (root CLAUDE.md) | Always the latest (TypeScript 7 breaks ESLint; NestJS 12 and Vitest 5 are very new) |
 | E01-D2 | `packages/shared` is built with tsup to ESM and CommonJS | The CommonJS Nest API and the ESM Vite app both use it without tricks | Source-only TypeScript package (needs special Nest build set-up); project references |
 | E01-D3 | The API is CommonJS, built by the Nest CLI with SWC; type checking is a separate `tsc --noEmit` | Fast builds; the standard Nest set-up; TypeORM migrations work out of the box | ESM Nest (TypeORM and migration loading are awkward) |
-| E01-D4 | The test database is reset only by `prepare-test-db`, which checks it is `labsafe_test` on 5443 | Can never wipe the development database (root CLAUDE.md hard rule) | Manual SQL; a reset inside each test |
+| E01-D4 | The test database is reset only by `prepare-test-db` (schema) and `resetTables` (rows), both behind one guard that accepts only `labsafe_test` on port 5443 of `localhost` / `127.0.0.1`, with no query string or hash | Can never wipe the development database (root CLAUDE.md hard rule) | Manual SQL; a reset inside each test |
 | E01-D5 | Integration tests run one file at a time against one migrated schema, with tables emptied per file | Real constraints and transactions are tested; simple and deterministic | A database per worker (more set-up); mocking the repositories (misses constraint bugs) |
 | E01-D6 | Configuration is read from `process.env`, checked by Zod, with `.env` loaded by `node --env-file-if-exists` | No extra libraries; fails fast on mistakes | `@nestjs/config` with dotenv |
 | E01-D7 | Fixed lists are `{ value, label }` constants with upper-case codes | Stable values for the database and URLs; English labels in one place | Plain strings; database tables |
@@ -202,3 +202,4 @@ Accounts arrive in E02, which adds the deny-by-default guard. Until then, both E
 
 - **2026-10-30** (`/epic-done` design update, epic-review F9): §2 lists the built `e2e/` and API test files; §5 documents shared-first `typecheck`, `concurrently -k`, and the repository-root `.env` path for `dev:api`; §6 documents Vitest `.mts` configs, `--configLoader runner`, and `NestFactory.create` in `createTestApp`.
 - **2026-10-30** (`/epic-done` design update, epic-review F9–F11): §10 and this section record that app-level integration tests must use `NestFactory.create`, not `Test.createTestingModule`, because serve-static picks `NoopLoader` when the HTTP adapter does not exist yet at `compile()` time.
+- **2026-11-16** (design update after the fixes of epic-review F1, F2 and the drift in F9): §6 and E01-D4 describe the test-database guard as built (refuses `?`/`#`, hosts other than `localhost`/`127.0.0.1`, other database names and ports; also called by `createTestApp` and `resetTables`), and the §6 sequence diagram follows; §4 describes the `ErrorFilter` mapping, where a non-`HttpException` error keeps its 4xx status only when `expose === true`; §2 adds `cli-data-source.ts`, `migrations/index.ts`, `test-db-guard.test.ts`, `test/fixtures/web-dist/` and web `src/test/`; §3 names `cli-data-source.ts` as the CLI entry. §5 and §6 (shared-first `typecheck`, `.mts` configs, `dev` env path, `NestFactory.create`) were checked against the code and already match.

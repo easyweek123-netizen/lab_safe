@@ -1,7 +1,11 @@
 import { DataSource } from 'typeorm';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { prepareTestDb, TEST_DB_NOT_RUNNING_MESSAGE } from './prepare-test-db';
-import { assertTestDatabase, NotTestDatabaseError, TEST_DATABASE_URL } from './test-db-guard';
+import { prepareTestDb, TEST_DB_NOT_RUNNING_MESSAGE } from '../../../scripts/prepare-test-db';
+import {
+  assertTestDatabase,
+  NotTestDatabaseError,
+  TEST_DATABASE_URL,
+} from '../../../scripts/test-db-guard';
 
 const REFUSED_URLS = [
   ['the development database', 'postgres://labsafe:labsafe@localhost:5442/labsafe'],

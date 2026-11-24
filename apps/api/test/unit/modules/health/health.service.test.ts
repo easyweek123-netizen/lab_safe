@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { DataSource } from 'typeorm';
-import { AppException } from '../../common/app.exception';
-import { HealthService } from './health.service';
+import { AppException } from '../../../../src/common/app.exception';
+import { HealthService } from '../../../../src/modules/health/health.service';
 
 function serviceWith(query: ReturnType<typeof vi.fn>): HealthService {
   return new HealthService({ query } as unknown as DataSource);
