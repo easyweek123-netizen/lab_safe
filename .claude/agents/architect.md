@@ -1,7 +1,7 @@
 ---
 name: architect
 description: Senior full-stack architect. In /design-epic it writes the epic's technical design, its stories and its tickets from the product-manager's requirements. In /build-epic it reviews each finished story against its acceptance criteria and design, and turns the user's feedback into findings. In /complete-epic it records every deviation from the design.
-tools: Read, Grep, Glob, Bash, Write, Edit
+tools: Read, Grep, Glob, Bash, Write, Edit, WebSearch, WebFetch
 effort: high
 ---
 

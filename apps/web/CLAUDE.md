@@ -9,6 +9,11 @@ Every route is in `src/App.tsx`. Add a row when you add a page.
 | Route | Folder | Story | Note |
 | ----- | ------ | ----- | ---- |
 | `/` | `src/pages/home/` | S01.2 | Lab rooms and hazard types; replaced by search in E06 |
+| `/signup` | `src/pages/signup/` | S02.1 | Sign-up form; a signed-in visitor goes to `/contribute` |
+| `/login` | `src/pages/login/` | S02.1 | Login form; goes to a local `next` path or `/contribute` |
+| `/contribute` | `src/pages/contribute/` | S02.1 | Contributor area behind `RequireAccount` (contributor level); PENDING and REJECTED accounts see the notice at this address |
+| `/admin/sign-ups` | `src/pages/admin-sign-ups/` | S02.2 | Pending sign-ups with Approve and Reject, behind `RequireAccount` (admin level); an approved contributor sees "No access" |
+| `/admin/accounts` | `src/pages/admin-accounts/` | S02.3 | Approved accounts with "Make admin" or "Remove admin", behind `RequireAccount` (admin level); an approved contributor sees "No access" |
 | `*` | `src/pages/not-found/` | S01.2 | Every unknown address |
 
 ## Layout
@@ -32,7 +37,7 @@ src/
 - **Forms:** validate with the shared schema on submit; show the server's `fields` errors next to their inputs.
 - **Types:** no `any`; props are typed; data types come from `@labsafe/shared`.
 - **Lists:** keys are stable ids, never the index.
-- **Routing:** routes only in `App.tsx`; links with `<Link>`.
+- **Routing:** routes only in `App.tsx`; links with `<Link>`. A page that needs an account goes under the `RequireAccount` layout route (`level="contributor"` or `"admin"`); it shows the log-in redirect or the notice at the same address. The server still decides every action; the gate and hidden links are only for display.
 - **Styling:** Tailwind classes only; no inline styles and no other CSS files besides `src/index.css`.
 - **States:** every page handles loading (`role="status"`), empty, error (`role="alert"`) and success.
 - **Accessibility:** a label on every input, alt text on every image, one `h1` per page and headings in order, everything reachable by keyboard with a visible focus.
@@ -42,7 +47,7 @@ src/
 ## Tests
 
 - **Component tests:** `*.test.tsx` next to the component, with Vitest and Testing Library. Render pages with `renderApp(path)` from `src/test/render.tsx`. Mock the network with MSW (`src/test/msw.ts`); unhandled requests fail.
-- **End-to-end tests:** `e2e/tests/*.spec.ts` with Playwright, run at desktop width and at 375 px. Every new page gets a no-sideways-scroll check.
+- **End-to-end tests:** `e2e/tests/*.spec.ts` with Playwright, run at desktop width and at 375 px. Every new page gets a no-sideways-scroll check. Shared steps (sign up, log in, log in as the setup admin from `e2e/test-env.ts`, approve, change role) are in `e2e/helpers/accounts.ts`; every test uses its own unique email, because both widths share one database.
 - **Titles** start with the story and acceptance criterion: `S02.1 AC7 shows "Page not found"`. E01's tests keep their `TC-…` titles.
 - Find elements by role or label; assert what the user sees.
 

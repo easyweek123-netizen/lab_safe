@@ -1,4 +1,4 @@
-import type { INestApplication } from '@nestjs/common';
+import { type DynamicModule, type INestApplication, Module, type Type } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { Client } from 'pg';
 import { assertTestDatabase, TEST_DATABASE_URL } from '../scripts/test-db-guard';
@@ -12,24 +12,41 @@ const KEPT_TABLES = ['lab_rooms', 'migrations'];
 /**
  * Builds and starts the real app (the same `NestFactory.create`, `AppModule` and `configureApp`
  * as `main.ts`) on `labsafe_test`. `env` overrides single settings, for example `WEB_DIST_DIR` in
- * S01.3. Close it with `app.close()` in `afterAll`.
+ * S01.3. `extraControllers` adds test-only routes next to the real ones, behind the same global
+ * guards (S02.1 AC11 uses a route without an access level). Close it with `app.close()` in
+ * `afterAll`.
  *
  * Not `@nestjs/testing`: its `compile()` creates the providers before the HTTP adapter exists,
  * so `@nestjs/serve-static` would pick its do-nothing loader and never serve the web app.
  */
-export async function createTestApp(env: Record<string, string> = {}): Promise<INestApplication> {
+export async function createTestApp(
+  env: Record<string, string> = {},
+  extraControllers: Type[] = [],
+): Promise<INestApplication> {
   const config = loadConfig({ ...process.env, ...env });
   // Integration tests write data, so they may only ever use the test database.
   assertTestDatabase(config.DATABASE_URL);
 
-  const app = await NestFactory.create(AppModule.forRoot(config), {
-    logger: ['error', 'warn'],
-    // Throw start-up errors to the test instead of ending the test process.
-    abortOnError: false,
-  });
+  const root = AppModule.forRoot(config);
+  const app = await NestFactory.create(
+    extraControllers.length === 0 ? root : withControllers(root, extraControllers),
+    {
+      logger: ['error', 'warn'],
+      // Throw start-up errors to the test instead of ending the test process.
+      abortOnError: false,
+    },
+  );
   configureApp(app);
   await app.init();
   return app;
+}
+
+@Module({})
+class TestRoutesModule {}
+
+/** A root module that imports the real `AppModule` and adds the given controllers. */
+function withControllers(root: DynamicModule, controllers: Type[]): DynamicModule {
+  return { module: TestRoutesModule, imports: [root], controllers };
 }
 
 /**

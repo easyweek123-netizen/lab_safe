@@ -1,6 +1,6 @@
 ---
 status: approved
-updated: 2026-10-30
+updated: 2026-11-24
 ---
 
 # LabSafe PRD
@@ -225,6 +225,19 @@ Priority: MUST = built and accepted · SHOULD = only if time allows, via `/chang
 - **M1–M6:** none due in E01 (metrics scheduled for search, public pages, assistant, publishing epics, or release per §5).
 - **Exit criteria:** all six ticked in [epic.md](../epics/E01-foundation/epic.md); architect Verification **GREEN** 2026-10-30; [epic-review.md](../epics/E01-foundation/epic-review.md) Round 1 **APPROVE** (F1–F13 unticked, non-blocking).
 - **Gaps:** none for requirements covered by E01. Full NFR2 acceptance (usable safety pages at 375 px without horizontal scroll) is proven when instrument pages ship in later epics.
+
+### E02 · 2026-11-24 · GREEN
+
+- **US6** (sign up and wait for approval): met. "Cannot create pages" means "cannot reach the contributor area" until E03 adds pages. Evidence: S02.1 AC1–AC4, AC8–AC10, AC16; S02.2 AC6, AC7 (a rejected account sees "Your sign-up was not approved", never reaches the contributor area, and its email stays taken); S02.1 qa.md run 1 and S02.2 qa.md run 1 PASS; epic C1, C2, C4, C5.
+- **US10** (approve or reject sign-ups): met. Evidence: S02.2 AC3–AC8, AC10–AC12; `e2e/tests/sign-up-review.spec.ts` (approve and reject journeys at 1280 px and 375 px); S02.2 qa.md run 1 PASS; epic C3, C4, C6.
+- **US14** (make or remove admins): met. Only approved accounts can change role, and the last admin can't be demoted, also when two admins demote each other at once. Evidence: S02.3 AC1–AC8, AC12; `S02.3 AC6` integration tests (deterministic lock test and HTTP race); S02.3 qa.md run 1 PASS; epic C7, C8.
+- **NFR4** (security): **partly met**, as planned in epic open question 1. Met: scrypt-hashed passwords (S02.1 AC13); every role check on the server, and a route with no access level refuses everyone (S02.1 AC11); every admin action refuses an anonymous visitor (401) and pending, rejected and approved-contributor accounts (403) over HTTP (S02.2 AC9, S02.3 AC9, including self-promotion); epic C9, C10, C11. Open: the "someone else's draft" tests, because drafts don't exist yet. E03 (pending pages) and E04 (US9) close it.
+- **NFR5** (privacy): met. `users` holds only id, name, email, password hash, role, status and timestamps; no cookie for anonymous visitors; one `labsafe_session` cookie (HttpOnly, SameSite=Lax) after login; every request goes to the app's own origin. Evidence: S02.1 AC14 (`accounts-tables.int.test.ts`, `auth.int.test.ts`, `e2e/tests/accounts.spec.ts`); S02.1 qa.md run 1; epic C12.
+- **NFR2** (cross-cutting): the new pages (sign-up, login, waiting notice, contributor area, Sign-ups, Accounts, "No access") have no horizontal scrolling at 375 px. `pnpm e2e` 52 passed (26 at 1280 px, 26 at 375 px). Epic C13.
+- **NFR6** (cross-cutting): all new text is English (story "UI states" tables, QA runs).
+- **M1–M6:** none due in E02. M3 starts in E03.
+- **Checks (2026-11-24):** `pnpm verify` pass, `pnpm e2e` 52 passed, docs-check OK; architect Verification **GREEN**; every story review latest round APPROVE; all 14 epic criteria ticked in [epic.md](../epics/E02-accounts-access/epic.md).
+- **Known gaps (all minor, left by the user):** S02.1 F2 (a failed logout shows no message), F4 (a failed background refresh of the session replaces the page with an error); S02.2 F2 (`.env.example` has active `BOOTSTRAP_ADMIN_*` lines with an example password), F3 (whoever first signs up with the configured bootstrap email becomes admin on the next start, if no admin exists), F4 (focus lost after a failed approve or reject), QA observation (a rejected account still sees the "Contributor area" link); S02.3 F1 (a concurrent promotion can wrongly refuse a self-demotion; fails safe), B1 (a 403 in the console after removing your own admin role).
 
 ## 9. Changes
 
