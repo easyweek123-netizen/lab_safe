@@ -9,6 +9,16 @@ export const ErrorCode = z.enum([
   'REQUEST_REJECTED',
   'SERVICE_UNAVAILABLE',
   'INTERNAL_ERROR',
+  // E02 accounts and access (S02.1).
+  'UNAUTHENTICATED',
+  'FORBIDDEN',
+  'INVALID_CREDENTIALS',
+  'EMAIL_TAKEN',
+  // S02.2: approve or reject an account that is no longer pending.
+  'USER_NOT_PENDING',
+  // S02.3: change the role of an account that is not approved; demote the last admin.
+  'USER_NOT_APPROVED',
+  'LAST_ADMIN',
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 

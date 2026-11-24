@@ -13,7 +13,7 @@ src/
 test/
   unit/                unit tests, mirroring src/ (test/unit/common/config.test.ts)
   *.int.test.ts        integration tests against the real app and labsafe_test
-  helpers.ts, setup-file.ts, global-setup.ts, fixtures/
+  helpers.ts, auth-helpers.ts, setup-file.ts, global-setup.ts, fixtures/
 ```
 
 All tests live in `test/`. There are no test files in `src/` or `scripts/`.
@@ -25,12 +25,12 @@ All tests live in `test/`. There are no test files in `src/` or `scripts/`.
 - **Services hold the rules.** Inject dependencies through the constructor as `private readonly`. Inject repositories with `@InjectRepository(Entity)`.
 - **Input:** every body, param and query is parsed with a shared Zod schema through `new ZodValidationPipe(schema)`. No class-validator, no hand-written checks.
 - **Output:** map entities to the shared response schema with a `to<Name>Response()` function. Never return an entity.
-- **Access:** every route declares who may call it. Anything without a declaration is refused.
+- **Access:** every route, or its controller, declares who may call it with one decorator from `src/common/access.ts`: `@Public()`, `@SignedIn()`, `@Contributor()` or `@Admin()`. The global `AccessGuard` refuses anything without one (403); the global `RequestOriginGuard` runs first on every POST, PUT, PATCH and DELETE. Read the caller with `@CurrentUser()`.
 - **Transactions:** a change that touches several rows runs inside `dataSource.transaction(async (manager) => …)`, using `manager` for every query in it.
 - **Errors:** throw `AppException(status, code, message)` with an `ErrorCode` from `packages/shared/src/errors.ts`. Never throw a plain `Error` or string for a client error. Never swallow an error in an empty `catch`.
-- **Configuration:** only through the injected `APP_CONFIG` (`src/common/config.ts`), never `process.env`.
+- **Configuration:** only through the injected `APP_CONFIG` (`src/common/config.ts`), never `process.env`. Every setting is validated there and listed in `.env.example` (design doc §10). The first admin comes from `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD` and `BOOTSTRAP_ADMIN_NAME`: **all three or none** (a partial set stops the start-up; none and no admin only logs a warning). No other names are read, so older `SEED_ADMIN_*` lines in a `.env` do nothing.
 - **Logging:** `private readonly logger = new Logger(<Class>.name)`. No `console.log`. Never log passwords, tokens or personal data.
-- **Queries:** no query inside a loop; load related rows with a join. A column used in `WHERE` gets an index in the migration.
+- **Queries:** no query inside a loop; load related rows with a join. A column used in `WHERE` gets an index in the migration, unless the epic's design records an exception (E02: `users.role`, `users.status`).
 - **Entities:** UUID primary keys, snake_case column names, `created_at` and `updated_at` columns.
 - **TypeScript:** no `any`; use the types from `@labsafe/shared`. `async`/`await` everywhere; no promise left unawaited.
 - **Files:** `<name>.<kind>.ts` in kebab case; one class per file.
@@ -44,7 +44,7 @@ All tests live in `test/`. There are no test files in `src/` or `scripts/`.
 ## Tests
 
 - **Unit tests** (`test/unit/`): no database.
-- **Integration tests** (`test/*.int.test.ts`): the real app from `createTestApp()` with Supertest. `test/setup-file.ts` empties the tables before each file.
+- **Integration tests** (`test/*.int.test.ts`): the real app from `createTestApp(env, extraControllers)` with Supertest. `test/setup-file.ts` empties the tables before each file. Create accounts and sessions with `test/auth-helpers.ts` (one precomputed password hash, so no test pays for scrypt per user). The tests do not read `.env`.
 - **Titles** start with the story and acceptance criterion: `it('S02.1 AC2 refuses a non-admin with 403', …)`. E01's tests keep their `TC-…` titles.
 - **Every endpoint:** a successful call, an invalid input, and a 401 or 403 for each role that must be refused.
 

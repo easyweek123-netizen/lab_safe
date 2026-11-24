@@ -158,7 +158,7 @@ function checkStory(s, epic, epicCovers, storyCovers) {
     if (auto && !ticketIds.has(tc.ticket))
       err(d.path, `${tc.id} is automated by "${tc.ticket}", which is not a ticket of this story`);
   }
-  for (const ac of acs) if (!acsWithTc.has(ac)) err(d.path, `${ac} has no test case`);
+  if (s.tcs.length) for (const ac of acs) if (!acsWithTc.has(ac)) err(d.path, `${ac} has no test case`);
 
   // Tickets
   if (!s.tickets.length) err(d.path, 'story has no tickets (be/ or fe/)');

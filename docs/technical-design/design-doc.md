@@ -1,6 +1,6 @@
 ---
 status: approved
-updated: 2026-11-16
+updated: 2026-11-24
 ---
 
 # LabSafe design doc
@@ -191,7 +191,7 @@ Hazards and protective equipment get their own tables because students filter by
 
 ## 4. API surface
 
-Everything is under `/api`. **Who may call:** Public = anyone; Signed-in = any session; Contributor = approved contributor or admin; Admin = admin.
+Everything is under `/api`. **Who may call:** Public = anyone; Signed-in = any session, whatever its status; Contributor = approved contributor or admin; Admin = approved admin.
 
 **Auth and meta**
 
@@ -200,7 +200,7 @@ Everything is under `/api`. **Who may call:** Public = anyone; Signed-in = any s
 | POST | /auth/signup | Public | Create a PENDING contributor | US6 |
 | POST | /auth/login | Public | Start a session (sets the cookie) | US6 |
 | POST | /auth/logout | Signed-in | End the session | US6 |
-| GET | /auth/me | Signed-in | Current user, role, status | US6 |
+| GET | /auth/me | Public | Current user, role, status; `{user: null}` for an anonymous visitor (E02-D3) | US6 |
 | GET | /meta/lists | Public | Fixed lists and lab rooms | R4, US2 |
 
 **Public reading and assistant**
@@ -227,7 +227,7 @@ Everything is under `/api`. **Who may call:** Public = anyone; Signed-in = any s
 
 | Method | Path | Who may call | Purpose | Requirement |
 | --- | --- | --- | --- | --- |
-| GET | /admin/users | Admin | Users, filterable by status | US10, US14 |
+| GET | /admin/users | Admin | Users with `status=PENDING` (oldest first) or `status=APPROVED` (by name) | US10, US14 |
 | POST | /admin/users/:id/approve | Admin | Approve a sign-up | US10 |
 | POST | /admin/users/:id/reject | Admin | Reject a sign-up | US10 |
 | PUT | /admin/users/:id/role | Admin | Make or remove an admin (I7) | US14 |
@@ -241,11 +241,11 @@ Request and response bodies are Zod schemas in `packages/shared`. Each epic's de
 ## 5. Auth and authorisation
 
 - **Sign-up and login:** email and password. Passwords are hashed with Node's built-in `scrypt` (random salt, compared in constant time).
-- **Session:** login creates a random 32-byte token. The browser keeps it in an `httpOnly`, `Secure` (except in development), `SameSite=Lax` cookie; the database keeps only its SHA-256 hash, valid for 7 days. Logout deletes the row.
+- **Session:** sign-up and login create a random 32-byte token. The browser keeps it in the `labsafe_session` cookie: `httpOnly`, `SameSite=Lax`, `Path=/`, and `Secure` when `COOKIE_SECURE` is true (default: only when `NODE_ENV=production`, because the test copy on :4100 is plain HTTP). The database keeps only its SHA-256 hash, valid for 7 days from login (not extended by use). Logout deletes the row.
 - **Every request** loads the user from the session, so approving, rejecting or changing a role takes effect at the user's very next request (US10, US14).
-- **Cross-site request forgery:** the app is served from one origin, the cookie is `SameSite=Lax`, and every request that changes data must carry `Content-Type: application/json` or `multipart/form-data` and pass an `Origin` check.
-- **Guards:** `@Public()`, `@Contributor()` (status APPROVED, role CONTRIBUTOR or ADMIN) and `@Admin()`. A route with no decorator is refused by default.
-- **The first admin** is created at start-up from the `BOOTSTRAP_ADMIN_*` variables when no admin exists (PRD §7).
+- **Cross-site request forgery:** the app is served from one origin, the cookie is `SameSite=Lax`, and a global `RequestOriginGuard` refuses (403) every POST, PUT, PATCH or DELETE unless it carries `Content-Type: application/json` or `multipart/form-data` and, when an `Origin` header is present, its host equals the `Host` header. In development the Vite proxy keeps `Host` unchanged (`changeOrigin: false`) so the check passes.
+- **Guards:** one global `AccessGuard` with four levels from `apps/api/src/common/access.ts`: `@Public()`, `@SignedIn()` (any session, used by logout), `@Contributor()` (status APPROVED, role CONTRIBUTOR or ADMIN) and `@Admin()` (status APPROVED, role ADMIN). A route with no decorator is refused with 403 for everyone. It runs after `RequestOriginGuard`.
+- **The first admin** is created at start-up from `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD` and `BOOTSTRAP_ADMIN_NAME` when no admin exists (PRD §7). All three or none: a partial set stops the start-up with one line naming the missing settings; with none set and no admin, the app starts and logs a warning. If the email already has an account, that account becomes an approved admin and keeps its password (risk in §11). No other names are read (for example `SEED_ADMIN_*`).
 
 | Role | Read and search, assistant | Write own submissions | Review, users, delete |
 | --- | --- | --- | --- |
@@ -358,10 +358,10 @@ Every error response looks like this:
 | Status | Code | When |
 | --- | --- | --- |
 | 400 | VALIDATION_FAILED | Zod validation failed; `fields` names every missing or invalid field (R3) |
-| 401 | UNAUTHENTICATED | No session or an expired one |
-| 403 | FORBIDDEN | Wrong role, or the account is not approved |
+| 401 | UNAUTHENTICATED · INVALID_CREDENTIALS | No session or an expired one · wrong email or password at login (one message for both) |
+| 403 | FORBIDDEN | Wrong role, the account is not approved, the route declares no access level, or a data-changing request failed the origin check |
 | 404 | NOT_FOUND | Missing, or not visible to this caller. Unpublished content is always a 404, never a 403, so its existence is not revealed (R1) |
-| 409 | PENDING_UPDATE_EXISTS · LAST_ADMIN · EMAIL_TAKEN | I3, I7, sign-up |
+| 409 | PENDING_UPDATE_EXISTS · LAST_ADMIN · EMAIL_TAKEN · USER_NOT_PENDING · USER_NOT_APPROVED | I3, I7, sign-up, approving or rejecting an account that is no longer pending, changing the role of an account that is not approved |
 | 413 / 415 | PHOTO_TOO_LARGE · PHOTO_TYPE | Photo upload |
 | 429 | ASSISTANT_BUSY | R2 limit reached, or the provider is unavailable |
 
@@ -377,7 +377,7 @@ The error codes are a shared enum in `packages/shared`. E01 also defines 503 `SE
 | End-to-end (`auto: e2e`) | Playwright against the built app on :4100 | User journeys at 375 px and desktop width; the timed M1 and M2 test |
 | Manual / on demand | Lighthouse, `pnpm eval:assistant` | M5, M6 |
 
-Each automated test's title starts with its test-case id, for example `it('TC-3.2 refuses a pending contributor', …)`, so the documentation check can trace it.
+Each automated test's title starts with its story and acceptance criterion, for example `it('S02.1 AC2 refuses a non-admin with 403', …)`, so the documentation check can trace it. E01's tests keep their `TC-…` titles.
 
 **How each required command is provided:**
 
@@ -387,7 +387,7 @@ Each automated test's title starts with its test-case id, for example `it('TC-3.
 | `pnpm dev` | `concurrently`: shared `tsup --watch`, Nest watch on :3000 (loads the repository-root `.env`), Vite on :5173 (proxies `/api`) |
 | `pnpm typecheck` | build `@labsafe/shared`, then `tsc --noEmit` in every package |
 | `pnpm verify` | prettier check → eslint → typecheck → unit and web tests → backend integration tests → build → docs:check |
-| `pnpm e2e` | build → reset `labsafe_test` and run migrations (`test:db:prepare`; later epics add the e2e seed here) → Playwright starts the built app on :4100 (later epics set `AI_PROVIDER=fake` in test env) |
+| `pnpm e2e` | build → reset `labsafe_test` and run migrations (`test:db:prepare`; later epics add the e2e seed here) → Playwright starts the built app on :4100 with `e2e/test-env.ts`, whose `BOOTSTRAP_ADMIN_*` values give the fresh copy one setup admin (later epics set `AI_PROVIDER=fake` in test env) |
 | `pnpm qa:serve` | build → `test:db:prepare` → start the built app on :4100 with the same test settings as e2e, print `QA server: http://localhost:4100`, keep running |
 | `pnpm docs:check` | `node .claude/tools/docs-check.mjs` |
 
@@ -397,9 +397,9 @@ Extra scripts: `db:migrate` and `db:seed` (development database; each run needs 
 
 - **Ports:** development database 5442, test database 5443, API (dev) 3000, Vite (dev) 5173, test app 4100. Port 5432 is never used (another project uses it).
 - **Configuration:** environment variables, validated by a Zod schema at start-up, which fails fast on a bad value. `.env.example` lists them, and `.env` is never committed or read by agents.
-  - `DATABASE_URL`, `PORT`, `NODE_ENV`, `COOKIE_SECURE`
+  - `DATABASE_URL`, `PORT`, `NODE_ENV`, `WEB_DIST_DIR` (test and production only), `COOKIE_SECURE` (`true` or `false`; unset means true only in production)
   - `AI_PROVIDER` (`fake` | `openai-compatible`), `AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL` (default `openai/gpt-oss-120b`), `AI_HOURLY_LIMIT` (default 100)
-  - `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD`, `BOOTSTRAP_ADMIN_NAME`
+  - `BOOTSTRAP_ADMIN_EMAIL`, `BOOTSTRAP_ADMIN_PASSWORD`, `BOOTSTRAP_ADMIN_NAME`: all three or none, each checked with the sign-up rules (§5)
 - **Production:**
   - A multi-stage `Dockerfile` builds web and API into one Node 24 image. Render runs it as a free web service and deploys automatically when `master` is pushed. At start-up the container runs the migrations, then starts the server.
   - Neon free Postgres 15 is used with `sslmode=require`. The secrets live in Render's environment settings.
@@ -415,6 +415,7 @@ Extra scripts: `db:migrate` and `db:seed` (development database; each run needs 
 | Free-tier terms change (Render, Neon, Groq) | The demo link breaks | Everything is configuration plus one Docker image and plain Postgres; no vendor-specific features |
 | `sharp` is a native dependency | Install trouble with pnpm 11 | Approve it in `allowBuilds:` in `pnpm-workspace.yaml`; it ships prebuilt binaries for macOS and Linux |
 | Neon storage of 0.5 GB | The photos table fills up | Re-encoding keeps each photo around 300 KB; the PRD assumes at most about 100 instruments |
+| While no admin exists, anyone may sign up with the address later put in `BOOTSTRAP_ADMIN_EMAIL` (there is no email verification) | At the next start that account becomes admin with its own password | Set the three `BOOTSTRAP_ADMIN_*` settings before the first public start (E08), with a password of your own, never the `.env.example` placeholder |
 
 ## 12. Decisions
 
@@ -433,10 +434,11 @@ Extra scripts: `db:migrate` and `db:seed` (development database; each run needs 
 | D11 | Open-weight `gpt-oss-120b` on Groq's free tier through an OpenAI-compatible API, behind `LlmProvider`, with `FakeLlmProvider` in tests | The user asked for an open-source model with tool use at no cost; one configuration change switches to OpenRouter or Ollama | Claude or OpenAI (paid, not open source); self-hosted Ollama (no free hosting can run it) | 2026-10-29 |
 | D12 | The assistant is a single-question, tool-using librarian (`search_safety_pages`, `get_safety_page`, at most 3 rounds) and its sources are verified on the server | The user chose single questions; grounded answers (US5) that can be measured (M6) | Sending all pages in the prompt; chat history | 2026-10-29 |
 | D13 | Hosting: Render free web service (Docker) plus Neon free Postgres | A free, shareable link; Neon's free database does not expire, while Render's free Postgres does after 30 days | Koyeb, Railway (no lasting free tier); Supabase (pauses after a week idle) | 2026-10-29 |
-| D14 | Testing: Vitest everywhere (API through `unplugin-swc`), Supertest, MSW, Playwright; test titles start with their test-case id | One test runner, and traceability that the docs check can verify | Jest for the API | 2026-10-29 |
+| D14 | Testing: Vitest everywhere (API through `unplugin-swc`), Supertest, MSW, Playwright; test titles start with their story and acceptance criterion (`S02.1 AC2 …`; E01 kept `TC-…` ids) | One test runner, and traceability that the docs check can verify | Jest for the API | 2026-10-29 |
 | D15 | Fixed lists are TypeScript constants in `packages/shared`, mirrored by CHECK constraints; lab rooms are a seeded table | R4 is enforced in one place for code and database; rooms need display names | Postgres enum types (harder to change); lookup tables for every list | 2026-10-29 |
 
 ## 13. Changes
 
 - **2026-10-30** (E01 `/epic-done`): §9 tooling table aligned with the built root scripts — `db:up` uses `--wait`, `typecheck` builds shared first, `dev` loads `.env` from the repository root, and `pnpm e2e` / `pnpm qa:serve` run **build → `test:db:prepare`** (not reset-then-build). E01 has no e2e seed or assistant env yet; those steps are noted for later epics.
 - **2026-11-16** (E01 design update after the fixes of epic-review F1, F2): §8 names the E01 codes (`SERVICE_UNAVAILABLE`, `REQUEST_REJECTED`, `INTERNAL_ERROR`) and says a non-`HttpException` error keeps its 4xx status only with `expose === true`; §9 adds `pnpm qa:serve` to the commands that share `labsafe_test` and describes the test-database guard (no `?`/`#`, `localhost`/`127.0.0.1` only, `labsafe_test`, port 5443).
+- **2026-11-24** (E02 `/complete-epic`): §4 `GET /auth/me` is Public and answers `{user: null}` to an anonymous visitor (E02-D3); Signed-in means any status, Admin an approved admin; `GET /admin/users` names its two `status` values. §5 describes what was built: the `labsafe_session` cookie with `Secure` from `COOKIE_SECURE`, the `RequestOriginGuard` rule and the dev proxy, the four access levels including `@SignedIn()`, and the first admin from `BOOTSTRAP_ADMIN_*` (all three or none; `SEED_ADMIN_*` is not read). §8 adds `INVALID_CREDENTIALS`, `USER_NOT_PENDING`, `USER_NOT_APPROVED` and the other 403 causes. §9 and D14: test titles use story and criterion since E02; `pnpm e2e` starts with a setup admin. §10 adds `WEB_DIST_DIR` and the `COOKIE_SECURE` and `BOOTSTRAP_ADMIN_*` rules. §11 adds the first-sign-up risk of `BOOTSTRAP_ADMIN_EMAIL` (S02.2 review F3).

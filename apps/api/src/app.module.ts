@@ -1,8 +1,11 @@
 import { type DynamicModule, Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { APP_CONFIG, type AppConfig } from './common/config';
+import { RequestOriginGuard } from './common/request-origin.guard';
 import { dataSourceOptions } from './db/data-source';
+import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
 import { MetaModule } from './modules/meta/meta.module';
 
@@ -19,6 +22,7 @@ export class AppModule {
           ...dataSourceOptions(config.DATABASE_URL),
           autoLoadEntities: true,
         }),
+        AuthModule,
         HealthModule,
         MetaModule,
         // One origin in test and production (design doc D7): every path outside `/api` gets the
@@ -33,7 +37,13 @@ export class AppModule {
             ]
           : []),
       ],
-      providers: [{ provide: APP_CONFIG, useValue: config }],
+      providers: [
+        { provide: APP_CONFIG, useValue: config },
+        // Global guards run in registration order, and this module's providers are registered
+        // before those of its imports: the origin check runs before `AuthModule`'s `AccessGuard`
+        // (E02 design "Flows").
+        { provide: APP_GUARD, useClass: RequestOriginGuard },
+      ],
       exports: [APP_CONFIG],
     };
   }
