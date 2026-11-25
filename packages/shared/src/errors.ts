@@ -19,6 +19,9 @@ export const ErrorCode = z.enum([
   // S02.3: change the role of an account that is not approved; demote the last admin.
   'USER_NOT_APPROVED',
   'LAST_ADMIN',
+  // S03.1: photo upload larger than 5 MB; content not a JPEG or PNG.
+  'PHOTO_TOO_LARGE',
+  'PHOTO_TYPE',
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 

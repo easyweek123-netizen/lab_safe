@@ -1,6 +1,6 @@
 ---
 status: approved
-updated: 2026-11-24
+updated: 2026-11-25
 ---
 
 # LabSafe design doc
@@ -30,7 +30,7 @@ A pnpm workspace:
 
 ```
 apps/api/         NestJS server
-  src/modules/    auth · users · instruments · submissions · review · photos · assistant · meta
+  src/modules/    auth · users · instruments (entities only, since E03) · submissions · review · photos · assistant · meta
   src/common/     config, error filter, guards, Zod pipe
   src/db/         data source, migrations, seeds
   test/           backend integration tests (against labsafe_test)
@@ -88,7 +88,7 @@ erDiagram
   }
   instruments {
     uuid id PK
-    text slug UK "never changes"
+    text slug UK "set at first approval (E04), then never changes"
     uuid published_revision_id FK "empty until first approval"
     uuid created_by FK
     timestamptz deleted_at "set when an admin deletes"
@@ -148,7 +148,7 @@ erDiagram
 | `users` | One account | email (unique, case-insensitive), name, password_hash, role, status |
 | `sessions` | One logged-in browser | token_hash (unique), user_id, expires_at |
 | `lab_rooms` | One room of the lab | code, name. Filled in by a migration with placeholder rooms (PRD §7) |
-| `instruments` | One instrument's identity | slug, published_revision_id, created_by, deleted_at |
+| `instruments` | One instrument's identity | slug (empty until the first approval, then never changes; E03-D3), published_revision_id, created_by, deleted_at |
 | `instrument_revisions` | One version of a safety page | *Workflow:* instrument_id, kind, status, submitted_by, submitted_at, reviewed_by, reviewed_at, review_note. *Content:* every field from PRD §4.1, listed in the next table |
 | `revision_hazards` | One hazard on one version | revision_id, hazard_type, note |
 | `revision_protective_equipment` | One protective-equipment item on one version | revision_id, equipment_item, note |
@@ -169,18 +169,18 @@ erDiagram
 | hazard_pictograms | GHS pictograms | A list of values from the 9 GHS symbols (GHS = Globally Harmonized System of hazard labels) |
 | before_use, safe_operation, do_not, emergency | The four guideline sections | |
 | emergency_phone | Emergency phone number | |
-| emergency_equipment | Nearest emergency equipment | A small JSON object: for each of the six items, a location or "not applicable" |
+| emergency_equipment | Nearest emergency equipment | A small JSON object with all six keys (`EYEWASH`, `SAFETY_SHOWER`, `FIRE_EXTINGUISHER`, `SPILL_KIT`, `FIRST_AID_KIT`, `EMERGENCY_STOP`), each `{kind: LOCATION, location}` or `{kind: NOT_APPLICABLE}` |
 | photo_id | Photo | |
-| search_vector | (none) | Computed by the database for the assistant's full-text search |
+| search_vector | (none) | Computed by the database for the assistant's full-text search; added by E06/E07, not by E03 |
 
-Hazards and protective equipment get their own tables because students filter by them (US2). Emergency equipment is only displayed, so a JSON object is enough.
+Hazards and protective equipment get their own tables because students filter by them (US2). Emergency equipment is only displayed, so a JSON object is enough. Each epic's migration adds only the columns that epic writes (E03-D6): E03 created `photos`, `instruments` (without `slug`, `published_revision_id` and `deleted_at`), `instrument_revisions` (without the review columns and `search_vector`) and the two child tables.
 
 | # | Invariant | Requirement | Enforced by |
 | --- | --- | --- | --- |
 | I1 | The public sees only the published revision of a non-deleted instrument | R1, US8, US13 | All public reads go through `PublishedInstrumentsQuery`; integration tests act as an anonymous visitor (M3) |
 | I2 | A published revision belongs to its instrument and is APPROVED | R1 | Composite foreign key (instrument_id, published_revision_id) → revisions (instrument_id, id); the approve transaction sets the status and the pointer together |
 | I3 | At most one PENDING revision per instrument | R6 | Partial unique index on `instrument_revisions(instrument_id) WHERE status = 'PENDING'` |
-| I4 | A submitted page has every required field | R3 | The shared Zod submit schema (lists every missing field); NOT NULL and non-empty CHECKs; "hazards ≥ 1 or no_significant_hazards" (same for protective equipment with standard_lab_attire_only) checked in the submit transaction |
+| I4 | A submitted page has every required field | R3 | The shared Zod `SafetyPageContent` schema, for create and edit (lists every missing field, including "hazards ≥ 1 or no_significant_hazards, not both" and the same for protective equipment with standard_lab_attire_only); the service writes the revision and its child rows from the parsed body in one transaction; NOT NULL and non-empty CHECKs, and the training and emergency-equipment CHECKs |
 | I5 | List values come only from the fixed lists | R4 | Constants in `packages/shared`; CHECK (value IN …) constraints generated from the same constants; lab rooms through a foreign key |
 | I6 | Training required ⇒ hazard level is not LOW | R5 | Table CHECK constraint plus a Zod refinement |
 | I7 | There is always at least one admin | US14 | Demotion in a transaction that locks the admin rows (`SELECT … FOR UPDATE`) and counts them |
@@ -209,19 +209,19 @@ Everything is under `/api`. **Who may call:** Public = anyone; Signed-in = any s
 | --- | --- | --- | --- | --- |
 | GET | /instruments | Public | Search (`q`) and filters (category, room, hazard, protective_equipment, hazard_level) | US1, US2 |
 | GET | /instruments/:slug | Public | Published page | US3, US4 |
-| GET | /photos/:id | Public* | Photo bytes (*I11 applies) | US3, R1 |
+| GET | /photos/:id | Public* | Photo bytes as `image/jpeg`, `Cache-Control: private, no-cache` (*I11 applies in the service; everyone else gets 404, E03-D4) | US3, US7, R1 |
 | POST | /assistant/ask | Public | One question → answer, sources or "unknown" | US5, R2 |
 
 **Contributor**
 
 | Method | Path | Who may call | Purpose | Requirement |
 | --- | --- | --- | --- | --- |
-| POST | /photos | Contributor | Upload a photo (≤ 5 MB, JPEG or PNG) | US7 |
+| POST | /photos | Contributor | Upload a photo (≤ 5 MB, JPEG or PNG; multipart field `photo`) → `{id, width, height}` | US7 |
 | POST | /submissions | Contributor | New page, submitted as PENDING | US7, R3 |
 | POST | /instruments/:slug/updates | Contributor | Suggest an update (a new PENDING revision) | US8, R6 |
 | GET | /submissions/mine | Contributor | My submissions with status and note | US9 |
-| GET | /submissions/:id | Contributor (own) or Admin | One submission | US9, US12 |
-| PUT | /submissions/:id | Contributor (own) | Edit a PENDING or REJECTED revision; it becomes PENDING again | US9 |
+| GET | /submissions/:id | Public* | One submission (*the service allows the author and approved admins; everyone else gets 404, E03-D4) | US7, US9, US12 |
+| PUT | /submissions/:id | Public* | Edit a PENDING (E03) or REJECTED (E04) revision; it becomes PENDING again (*the service allows only the approved author, I9; everyone else, admins included, gets 404, E03-D4) | US7, US9 |
 
 **Admin**
 
@@ -236,7 +236,7 @@ Everything is under `/api`. **Who may call:** Public = anyone; Signed-in = any s
 | POST | /admin/submissions/:id/reject | Admin | Reject; a note is required | US12 |
 | DELETE | /admin/instruments/:slug | Admin | Soft delete (sets deleted_at) | US13 |
 
-Request and response bodies are Zod schemas in `packages/shared`. Each epic's design names them.
+Request and response bodies are Zod schemas in `packages/shared`. Each epic's design names them. A route that is Public* at the guard decides in its service and answers 404 to every caller it doesn't allow, so the guard's 401 or 403 never reveals that unpublished content exists (E03-D4).
 
 ## 5. Auth and authorisation
 
@@ -332,8 +332,9 @@ flowchart TD
 
 **Photos (US7, NFR5).**
 - Uploads are limited to 5 MB and to JPEG or PNG, checked by reading the file's content, not trusting its stated type.
-- `sharp` re-encodes each photo to JPEG at most 1600 px wide, which also removes EXIF data such as GPS coordinates. The result (about 200–400 KB) is stored in the `photos` table.
-- Photos are served with `Cache-Control: private` and only when I11 allows.
+- `sharp` reads the format from the bytes (anything other than JPEG or PNG, or a file it can't decode, is 415 `PHOTO_TYPE`), then re-encodes each photo to JPEG: auto-rotated, at most 1600 px on its longer side and never enlarged, transparency flattened on white, quality 80, with no metadata, which removes EXIF data such as GPS coordinates (E03-D8). The result (about 200–400 KB) is stored in the `photos` table.
+- A file over 5 MB is refused by multer's limit as 413 `PHOTO_TOO_LARGE`; the photo is uploaded on its own and the page refers to it by `photoId` (E03-D1).
+- Photos are served with `Cache-Control: private, no-cache` and `X-Content-Type-Options: nosniff`, and only when I11 allows.
 - Storing photos in the database keeps us within free hosting: Render's disk is wiped on restart, and Neon's 0.5 GB comfortably holds a few hundred re-encoded photos.
 
 **AI assistant (US5, R2).**
@@ -362,7 +363,7 @@ Every error response looks like this:
 | 403 | FORBIDDEN | Wrong role, the account is not approved, the route declares no access level, or a data-changing request failed the origin check |
 | 404 | NOT_FOUND | Missing, or not visible to this caller. Unpublished content is always a 404, never a 403, so its existence is not revealed (R1) |
 | 409 | PENDING_UPDATE_EXISTS · LAST_ADMIN · EMAIL_TAKEN · USER_NOT_PENDING · USER_NOT_APPROVED | I3, I7, sign-up, approving or rejecting an account that is no longer pending, changing the role of an account that is not approved |
-| 413 / 415 | PHOTO_TOO_LARGE · PHOTO_TYPE | Photo upload |
+| 413 / 415 | PHOTO_TOO_LARGE · PHOTO_TYPE | Photo upload over 5 MB · content not a JPEG or PNG (E03). A request without a file is 400 `VALIDATION_FAILED` on `photo`; the JSON body parser's 413 stays `REQUEST_REJECTED` |
 | 429 | ASSISTANT_BUSY | R2 limit reached, or the provider is unavailable |
 
 The error codes are a shared enum in `packages/shared`. E01 also defines 503 `SERVICE_UNAVAILABLE` (health check), `REQUEST_REJECTED` (any other client error that has no specific code yet, with a generic message) and 500 `INTERNAL_ERROR`. The global Nest exception filter keeps a client error's 4xx status only for an `HttpException` or an Express request error with `expose === true` (for example the body parser's 413); everything else, including another library's error that carries a 4xx `status`, becomes 500 `INTERNAL_ERROR` with no internal details.
@@ -442,3 +443,4 @@ Extra scripts: `db:migrate` and `db:seed` (development database; each run needs 
 - **2026-10-30** (E01 `/epic-done`): §9 tooling table aligned with the built root scripts — `db:up` uses `--wait`, `typecheck` builds shared first, `dev` loads `.env` from the repository root, and `pnpm e2e` / `pnpm qa:serve` run **build → `test:db:prepare`** (not reset-then-build). E01 has no e2e seed or assistant env yet; those steps are noted for later epics.
 - **2026-11-16** (E01 design update after the fixes of epic-review F1, F2): §8 names the E01 codes (`SERVICE_UNAVAILABLE`, `REQUEST_REJECTED`, `INTERNAL_ERROR`) and says a non-`HttpException` error keeps its 4xx status only with `expose === true`; §9 adds `pnpm qa:serve` to the commands that share `labsafe_test` and describes the test-database guard (no `?`/`#`, `localhost`/`127.0.0.1` only, `labsafe_test`, port 5443).
 - **2026-11-24** (E02 `/complete-epic`): §4 `GET /auth/me` is Public and answers `{user: null}` to an anonymous visitor (E02-D3); Signed-in means any status, Admin an approved admin; `GET /admin/users` names its two `status` values. §5 describes what was built: the `labsafe_session` cookie with `Secure` from `COOKIE_SECURE`, the `RequestOriginGuard` rule and the dev proxy, the four access levels including `@SignedIn()`, and the first admin from `BOOTSTRAP_ADMIN_*` (all three or none; `SEED_ADMIN_*` is not read). §8 adds `INVALID_CREDENTIALS`, `USER_NOT_PENDING`, `USER_NOT_APPROVED` and the other 403 causes. §9 and D14: test titles use story and criterion since E02; `pnpm e2e` starts with a setup admin. §10 adds `WEB_DIST_DIR` and the `COOKIE_SECURE` and `BOOTSTRAP_ADMIN_*` rules. §11 adds the first-sign-up risk of `BOOTSTRAP_ADMIN_EMAIL` (S02.2 review F3).
+- **2026-11-25** (E03 `/complete-epic`): §2 `instruments` holds only entities so far. §3 `slug` is empty until the first approval and then never changes (E03-D3); each epic adds only the columns it writes (E03-D6), so `search_vector` comes with E06/E07; the shape of `emergency_equipment`; I4 says where completeness is enforced as built (the shared `SafetyPageContent` schema, the transaction from the parsed body, the CHECKs). §4: `GET` and `PUT /submissions/:id` and `GET /photos/:id` are Public at the guard and decided by the service with 404 for everyone else (E03-D4); `POST /photos` names its field and response. §7 "Photos": the format check, the E03-D8 re-encoding and the served headers. §8: when `PHOTO_TOO_LARGE` and `PHOTO_TYPE` apply, the 400 without a file, and that the body parser's 413 stays `REQUEST_REJECTED`.

@@ -4,3 +4,6 @@ export * from './schemas/health';
 export * from './schemas/meta';
 export * from './schemas/auth';
 export * from './schemas/admin-users';
+export * from './schemas/photos';
+export * from './schemas/safety-page';
+export * from './schemas/submissions';

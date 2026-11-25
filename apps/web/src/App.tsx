@@ -4,8 +4,10 @@ import { RequireAccount } from './components/RequireAccount';
 import { AccountsPage } from './pages/admin-accounts/AccountsPage';
 import { SignUpsPage } from './pages/admin-sign-ups/SignUpsPage';
 import { ContributorAreaPage } from './pages/contribute/ContributorAreaPage';
+import { EditSafetyPagePage } from './pages/edit-safety-page/EditSafetyPagePage';
 import { HomePage } from './pages/home/HomePage';
 import { LoginPage } from './pages/login/LoginPage';
+import { NewSafetyPagePage } from './pages/new-safety-page/NewSafetyPagePage';
 import { NotFoundPage } from './pages/not-found/NotFoundPage';
 import { SignUpPage } from './pages/signup/SignUpPage';
 
@@ -23,7 +25,11 @@ export const routes: RouteObject[] = [
       {
         // The account gate (E02-D7): decides at the requested address who sees the page.
         element: <RequireAccount level="contributor" />,
-        children: [{ path: 'contribute', element: <ContributorAreaPage /> }],
+        children: [
+          { path: 'contribute', element: <ContributorAreaPage /> },
+          { path: 'contribute/new', element: <NewSafetyPagePage /> },
+          { path: 'contribute/submissions/:id', element: <EditSafetyPagePage /> },
+        ],
       },
       {
         element: <RequireAccount level="admin" />,

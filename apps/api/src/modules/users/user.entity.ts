@@ -8,11 +8,7 @@ import {
   Unique,
   UpdateDateColumn,
 } from 'typeorm';
-
-/** `'A', 'B'`: the SQL list of a fixed set of values (design doc I5). */
-function sqlList(values: readonly string[]): string {
-  return values.map((value) => `'${value}'`).join(', ');
-}
+import { sqlList } from '../../db/sql-list';
 
 /**
  * One account (table `users`, E02 design "Data"). Mirrors the `CreateUsersAndSessions` migration

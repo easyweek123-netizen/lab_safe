@@ -95,3 +95,22 @@ export async function apiSend<T>(
   }
   return parseBody(res, schema);
 }
+
+/**
+ * POST `/api/` + `path` as `multipart/form-data` (S03.1 photo upload). The browser sets the
+ * `Content-Type` with its boundary from the `FormData`, so it is never set here. The response
+ * is validated with the shared `schema`; errors as in `apiGet` (status 0 for a network error).
+ */
+export async function apiSendForm<T>(
+  path: string,
+  form: FormData,
+  schema: z.ZodType<T>,
+): Promise<T> {
+  const res = await request(path, {
+    method: 'POST',
+    headers: { Accept: 'application/json' },
+    body: form,
+  });
+  await throwIfFailed(res);
+  return parseBody(res, schema);
+}

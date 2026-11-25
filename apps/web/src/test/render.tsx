@@ -6,7 +6,8 @@ import { routes } from '../App';
 
 /**
  * Renders the whole app (the real routes) at `path`, with a fresh QueryClient that never
- * retries, so every test starts clean and errors show at once. Every page test uses this.
+ * retries, so every test starts clean and errors show at once. Every page test uses this. The
+ * client is returned too, so a test can wait for a background refresh to settle.
  */
 export function renderApp(path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
@@ -19,5 +20,5 @@ export function renderApp(path: string) {
       <RouterProvider router={router} />
     </QueryClientProvider>,
   );
-  return { ...result, user, router };
+  return { ...result, user, router, queryClient };
 }

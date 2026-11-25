@@ -5,19 +5,40 @@ title: Sign up and log in
 type: feature
 status: draft # draft | building | in-review | qa | done
 covers: [US6] # a subset of the epic's covers
+points: 3 # story points: 1 | 2 | 3 | 5 | 8
 updated: YYYY-MM-DD
 ---
 
 # S02.1 Sign up and log in
 
-**As a** … **I want** … **so that** … · Delivers: C1 · Design: [design.md](../design.md)
+| **Status** | see `status:` above |
+| --- | --- |
+| **Story points** | see `points:` above |
+| **Epic criteria** | C1, C2 |
+| **Design** | [design.md](../design.md) |
+| **UX/UI designs** | none \| link |
+| **Dependencies** | none \| S02.0 (why) |
+
+## User story
+
+As a [type of user], I want [their goal], so that [the benefit].
+
+<!-- architect: name a clear user, the goal rather than the solution, and why it matters. -->
 
 ## Acceptance criteria
 
-<!-- architect: cover the successful path, invalid input, loading, empty and error states,
-     and every role that must be refused. Each one must be testable. -->
+<!-- architect: the conditions under which this story is complete. Clear, testable, about outcomes,
+     not implementation. Cover the successful path, invalid input, loading, empty and error states,
+     and every role that must be refused. Keep the bold identifier at the start of each line
+     (the docs checker reads it); put the details as sub-bullets. -->
 
 - **AC1** Given …, When …, Then ….
+  - detail or example
+  - detail or example
+
+## Out of scope
+
+<!-- What this story does NOT include, so nobody builds beyond it. -->
 
 ## API contract
 
@@ -41,8 +62,6 @@ updated: YYYY-MM-DD
 
 1. [BE-01 …](be/BE-01-slug.md)
 2. [FE-01 …](fe/FE-01-slug.md)
-
-## Out of scope
 
 ## Known gaps
 

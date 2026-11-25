@@ -67,6 +67,16 @@ export const HAZARD_LEVELS = [
   { value: 'HIGH', label: 'High' },
 ] as const;
 
+// The emergency equipment of PRD §4.1 "Emergency info", in PRD order (S03.1 API contract).
+export const EMERGENCY_EQUIPMENT = [
+  { value: 'EYEWASH', label: 'Eyewash' },
+  { value: 'SAFETY_SHOWER', label: 'Safety shower' },
+  { value: 'FIRE_EXTINGUISHER', label: 'Fire extinguisher' },
+  { value: 'SPILL_KIT', label: 'Spill kit' },
+  { value: 'FIRST_AID_KIT', label: 'First-aid kit' },
+  { value: 'EMERGENCY_STOP', label: 'Emergency stop' },
+] as const;
+
 export const HazardLevel = z.enum(['LOW', 'MEDIUM', 'HIGH']);
 export type HazardLevel = z.infer<typeof HazardLevel>;
 
@@ -74,3 +84,26 @@ export type HazardTypeValue = (typeof HAZARD_TYPES)[number]['value'];
 export type ProtectiveEquipmentValue = (typeof PROTECTIVE_EQUIPMENT)[number]['value'];
 export type HazardPictogramValue = (typeof HAZARD_PICTOGRAMS)[number]['value'];
 export type CategoryValue = (typeof CATEGORIES)[number]['value'];
+export type EmergencyEquipmentValue = (typeof EMERGENCY_EQUIPMENT)[number]['value'];
+
+/** The values of a fixed list, in list order, as the non-empty tuple `z.enum` needs. */
+function valuesOf<Value extends string>(list: readonly { value: Value }[]): [Value, ...Value[]] {
+  return list.map((item) => item.value) as [Value, ...Value[]];
+}
+
+// Zod enums built from the lists above, so each list has one source (S03.1 BE-01). The
+// database CHECKs are built from the same constants (BE-02).
+export const HazardType = z.enum(valuesOf(HAZARD_TYPES));
+export type HazardType = z.infer<typeof HazardType>;
+
+export const ProtectiveEquipmentItem = z.enum(valuesOf(PROTECTIVE_EQUIPMENT));
+export type ProtectiveEquipmentItem = z.infer<typeof ProtectiveEquipmentItem>;
+
+export const HazardPictogram = z.enum(valuesOf(HAZARD_PICTOGRAMS));
+export type HazardPictogram = z.infer<typeof HazardPictogram>;
+
+export const Category = z.enum(valuesOf(CATEGORIES));
+export type Category = z.infer<typeof Category>;
+
+export const EmergencyEquipmentItem = z.enum(valuesOf(EMERGENCY_EQUIPMENT));
+export type EmergencyEquipmentItem = z.infer<typeof EmergencyEquipmentItem>;

@@ -16,12 +16,13 @@ You are an experience software architect with 10+ years of experience in develop
 
 ## Mode 1: Technical design (`/design-epic`)
 
-**`design.md`** (template: `docs/_templates/design.md`, `status: draft`, about 150 lines): the data and where each rule is enforced, the endpoints and who may call them, the screens and their states, the authorization matrix, the decisions with their reasons, the risks, and the story outline. Use Mermaid diagrams.
+**`design.md`** (template: `docs/_templates/design.md`, `status: draft`, about 150 lines), in the template's order: objective, background, requirements, design, technical implementation (data models and where each rule is enforced, the API layer with who may call each endpoint, the UI layer with each page's states, testing), additional considerations (privacy, security with the "Who may do what" table, performance, deployment), decisions with their reasons, risks, the story outline and references. Use Mermaid diagrams.
 
 **Stories** (`<epic folder>/S<nn>.<n>-<slug>/story.md`, template `docs/_templates/story.md`), usually 2–4 per epic, each something a user can try:
-- the epic criteria (`C<n>`) it delivers;
-- acceptance criteria `- **AC<n>** Given … When … Then …`, covering the successful path, invalid input, the loading, empty and error states, and every role that must be refused;
-- the API contract, the UI states, and the approach.
+- the summary table: story points (`points:` 1, 2, 3, 5 or 8), the epic criteria (`C<n>`) it delivers, UX designs if any, and its dependencies;
+- the user story: "As a [type of user], I want [their goal], so that [the benefit]";
+- acceptance criteria `- **AC<n>** Given … When … Then …`, each with its details or examples as sub-bullets, covering the successful path, invalid input, the loading, empty and error states, and every role that must be refused;
+- out of scope, the API contract, the UI states, and the approach.
 
 Add a row per story to the story table in `epic.md`. Do not write test cases; the developers write a test for each acceptance criterion.
 

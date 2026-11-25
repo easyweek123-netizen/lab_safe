@@ -7,9 +7,13 @@ import {
   HAZARD_PICTOGRAMS,
   HAZARD_TYPES,
   MetaListsResponse,
+  MySubmissions,
+  Photo,
   PROTECTIVE_EQUIPMENT,
   ErrorResponse,
+  SafetyPageContent,
   SessionResponse,
+  Submission,
   type AccountStatus,
   type ErrorCode,
   type Role,
@@ -126,10 +130,109 @@ export function errorResponse(statusCode: number, code: ErrorCode, message: stri
   });
 }
 
+/** `POST /api/photos`, `GET /api/photos/:id` (S03.1). */
+export const PHOTOS = '*/api/photos';
+export const PHOTO = '*/api/photos/:id';
+
+/**
+ * The name and type of the file in the multipart field `field` of `request`, read from the raw
+ * body (MSW's `formData()` can't parse it under jsdom), or undefined when there is none.
+ */
+export async function uploadedFile(
+  request: Request,
+  field: string,
+): Promise<{ name: string; type: string } | undefined> {
+  const body = await request.text();
+  const match = new RegExp(
+    `Content-Disposition: form-data; name="${field}"; filename="([^"]*)"\\r\\nContent-Type: ([^\\r]*)`,
+  ).exec(body);
+  return match?.[1] !== undefined && match[2] !== undefined
+    ? { name: match[1], type: match[2] }
+    : undefined;
+}
+
+/** The photo `POST /api/photos` stores by default. */
+export const photoFixture = Photo.parse({
+  id: '9c4e2a1b-7d3f-4e5a-8b6c-1d2e3f4a5b01',
+  width: 1600,
+  height: 1200,
+});
+
+/** `POST /api/submissions`, `GET /api/submissions/mine` (S03.1). */
+export const SUBMISSIONS = '*/api/submissions';
+export const MY_SUBMISSIONS = '*/api/submissions/mine';
+
+/** A complete, valid "Rotary evaporator" page, as the shared schema returns it. */
+export const rotavapContent = SafetyPageContent.parse({
+  name: 'Rotary evaporator',
+  photoId: photoFixture.id,
+  manufacturer: 'Büchi',
+  model: null,
+  category: 'SEPARATION_EVAPORATION',
+  labRoomId: metaListsFixture.labRooms[0]?.id,
+  description: 'Removes solvents under reduced pressure.',
+  responsibleName: 'Dr. Lee',
+  responsibleContact: 'lee@lab.test',
+  hazardLevel: 'MEDIUM',
+  trainingRequired: true,
+  trainingGivenBy: 'Dr. Lee',
+  hazards: [{ type: 'HOT_SURFACE', note: 'The water bath reaches 90 °C.' }],
+  noSignificantHazards: false,
+  pictograms: ['FLAMMABLE'],
+  protectiveEquipment: [{ item: 'SAFETY_GLASSES', note: null }],
+  standardLabAttireOnly: false,
+  beforeUse: 'Check the glassware for cracks.',
+  safeOperation: 'Start the rotation before the vacuum.',
+  doNot: 'Do not heat a closed system.',
+  emergency: 'Stop the bath, vent the system and call for help.',
+  emergencyPhone: '112',
+  emergencyEquipment: {
+    EYEWASH: { kind: 'LOCATION', location: 'Next to the door' },
+    SAFETY_SHOWER: { kind: 'LOCATION', location: 'Corridor, room 1.02' },
+    FIRE_EXTINGUISHER: { kind: 'LOCATION', location: 'Left of the fume hood' },
+    SPILL_KIT: { kind: 'LOCATION', location: 'Under the sink' },
+    FIRST_AID_KIT: { kind: 'LOCATION', location: 'On the wall by the door' },
+    EMERGENCY_STOP: { kind: 'NOT_APPLICABLE' },
+  },
+});
+
+/** The 201 answer to submitting `rotavapContent` as `approvedUser`. Midday UTC, as above. */
+export const rotavapSubmission = Submission.parse({
+  id: '3f2e1d0c-9b8a-4c7d-8e6f-5a4b3c2d1e01',
+  kind: 'NEW',
+  status: 'PENDING',
+  submittedAt: '2026-11-24T12:00:00.000Z',
+  updatedAt: '2026-11-24T12:00:00.000Z',
+  submittedBy: { id: approvedUser.id, name: approvedUser.name },
+  content: rotavapContent,
+});
+
+/** `GET /api/submissions/mine` with the submitted "Rotary evaporator". */
+export const mySubmissionsFixture = MySubmissions.parse({
+  submissions: [
+    {
+      id: rotavapSubmission.id,
+      name: rotavapSubmission.content.name,
+      status: rotavapSubmission.status,
+      submittedAt: rotavapSubmission.submittedAt,
+    },
+  ],
+});
+
+/** `GET /api/submissions/mine` answering with `list`. Use with `server.use(…)`. */
+export function mySubmissionsHandler(list: MySubmissions) {
+  return http.get(MY_SUBMISSIONS, () => HttpResponse.json(MySubmissions.parse(list)));
+}
+
+/** `GET` and `PUT /api/submissions/:id` (S03.2). It also matches `/mine`: a GET handler must fall through (return undefined) for other ids. */
+export const SUBMISSION = '*/api/submissions/:id';
+
 export const handlers = [
   http.get('*/api/meta/lists', () => HttpResponse.json(metaListsFixture)),
   // By default nobody is signed in.
   meHandler(null),
+  // Every test that lands on `/contribute` loads My submissions (S03.1); by default it is empty.
+  http.get(MY_SUBMISSIONS, () => HttpResponse.json(MySubmissions.parse({ submissions: [] }))),
 ];
 
 export const server = setupServer(...handlers);
