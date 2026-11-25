@@ -7,16 +7,18 @@ const LINK_CLASS =
 // The account part of the header (S02.1 "UI states"): nothing while `me` loads, "Log in" for an
 // anonymous visitor or when `me` failed, and the name, "Contributor area" and "Log out" when
 // signed in; admins also get "Sign-ups" (S02.2 AC10) and "Accounts" (S02.3 AC10). It wraps
-// instead of scrolling sideways at 375 px.
+// instead of scrolling sideways at 375 px. Once `me` has loaded, it shows the cached account,
+// also after a background refresh failed (S03.3 AC1); "Log in" for a failure only when `me`
+// never loaded (S03.3 AC2).
 export function AccountMenu() {
-  const { data, isPending, isError } = useMe();
+  const { data, isPending } = useMe();
   const logOut = useLogOut();
 
   if (isPending) {
     return null;
   }
 
-  const user = isError ? null : data.user;
+  const user = data?.user ?? null;
   if (!user) {
     return (
       <Link to="/login" className={LINK_CLASS}>

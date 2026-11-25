@@ -1,6 +1,6 @@
 ---
 status: approved
-updated: 2026-11-24
+updated: 2026-11-25
 ---
 
 # LabSafe PRD
@@ -238,6 +238,25 @@ Priority: MUST = built and accepted · SHOULD = only if time allows, via `/chang
 - **M1–M6:** none due in E02. M3 starts in E03.
 - **Checks (2026-11-24):** `pnpm verify` pass, `pnpm e2e` 52 passed, docs-check OK; architect Verification **GREEN**; every story review latest round APPROVE; all 14 epic criteria ticked in [epic.md](../epics/E02-accounts-access/epic.md).
 - **Known gaps (all minor, left by the user):** S02.1 F2 (a failed logout shows no message), F4 (a failed background refresh of the session replaces the page with an error); S02.2 F2 (`.env.example` has active `BOOTSTRAP_ADMIN_*` lines with an example password), F3 (whoever first signs up with the configured bootstrap email becomes admin on the next start, if no admin exists), F4 (focus lost after a failed approve or reject), QA observation (a rejected account still sees the "Contributor area" link); S02.3 F1 (a concurrent promotion can wrongly refuse a self-demotion; fails safe), B1 (a 403 in the console after removing your own admin role).
+
+### E03 · 2026-11-25 · GREEN
+
+- **US7** (add a new safety page): met. The form covers every §4.1 field in five groups, missing fields are named all at once, and a submitted page is listed as "Pending" in "My submissions" and gets "not found" from the public. The author can also correct their own pending page. "Approved" and "rejected" statuses come with US9 in E04. Evidence: S03.1 AC1–AC4, AC8, AC16, AC19, AC20; S03.2 AC1, AC2, AC7, AC8; `e2e/tests/safety-page.spec.ts` and `safety-page-edit.spec.ts` at 1280 px and 375 px; S03.1 and S03.2 qa.md run 1 PASS; epic C1, C3, C9, C10, C14.
+- **R3** (a page cannot be submitted incomplete): met, in the form and on the server, on first submit and on edit. Every ✓ field is required, text of only spaces counts as missing, and "No significant hazards" and "No PPE beyond standard lab attire" must be chosen explicitly and can't be combined with an item. Evidence: S03.1 AC9–AC11, AC13; S03.2 AC3; `submissions.int.test.ts`, `submission-edit.int.test.ts`, `safety-page.test.ts`; epic C4, C5, C13.
+- **R4** (fixed lists only): met. Category, hazard types, PPE and GHS pictograms offer exactly the §4.2 lists, and lab rooms come only from the initial data (placeholders, §7 open question). A value outside the lists is refused by the server and by a database CHECK. Evidence: S03.1 AC2, AC13; `safety-page-tables.int.test.ts`; epic C2, C13.
+- **R5** (hazard level definitions): met. The three definitions are shown word for word next to the field; training required with Low is refused by the form, the server and the database. Evidence: S03.1 AC1, AC12; epic C1, C6.
+- **US6** (cross-cutting, accepted in E02): the part left open is now closed. Pending and rejected accounts are refused photo upload and page submission on the server (403; anonymous 401), and nothing is stored. Evidence: S03.1 AC14; epic C12.
+- **NFR4** (security): **still partly met**. Added in E03: the "someone else's draft" tests for pending pages and their photos. An anonymous visitor, a pending account, a rejected account and another approved contributor get the same "not found" as an unknown id when they read the page or its photo, or try to change the page; an admin can read it but not change it. Evidence: S03.1 AC15; S03.2 AC4, AC5; `photos.int.test.ts`, `submission-edit.int.test.ts`; epic C11. Open: someone else's *rejected* page (fix and resubmit, US9), and the refusal tests for the admin actions that E04 (approve, reject, preview) and E05 (delete) add. NFR4 is accepted when E04 delivers both; E05 must keep the delete action in the same tests.
+- **NFR5** (cross-cutting): photos are stored with no location (GPS) or other camera metadata. Evidence: S03.1 AC7 (`photos.int.test.ts`); epic C8.
+- **NFR2** (cross-cutting): the new-page form, the edit form and "My submissions" have no horizontal scrolling at 375 px; `pnpm e2e` runs the submit and edit journeys at both widths. Epic C16.
+- **NFR3** (not accepted until E06): hazard levels are labelled in words and every GHS pictogram shows its name with its symbol on the form (S03.1 AC2).
+- **NFR6** (cross-cutting): all new text is English (story "UI states" tables, QA runs).
+- **M3** (0 leaks): first measured, for the E03 part: an anonymous visitor gets "not found" for a pending page at `/instruments/<name>`, through the API and at its photo address, also after the page is edited. 0 leaks. Evidence: S03.1 AC19, S03.2 AC7. Search and the assistant don't exist yet (E06, E07); rejected and updated pages come in E04 and E05.
+- **M1, M2, M4–M6:** none due in E03.
+- **E02 gap fixed:** S02.1 F4 (a failed background refresh of the session replaced the page with an error) is fixed by S03.3: a short network drop keeps the form, everything typed and the name in the header. Evidence: S03.3 AC1–AC3, `e2e/tests/network-drop.spec.ts`; S03.3 qa.md run 1 PASS; epic C15.
+- **Checks (2026-11-25):** `pnpm verify` pass, `pnpm e2e` 58 passed (29 at 1280 px, 29 at 375 px), docs-check OK; architect Verification **GREEN**; every story review round 1 APPROVE; all 17 epic criteria ticked in [epic.md](../epics/E03-write-submit-page/epic.md). No requirement changes.
+- **Known gaps (all minor):** S03.1 F1 (once a photo is shown, a failed photo change isn't announced on a reachable control, and the error summary's "Photo" link does nothing), F2 (the error summary would skip an error on a hazard's type; the form can't produce one today), B1 (an old submit-failure message stays when a re-uploaded photo also fails); S03.2 notes (the edit page's failure messages say "submit again"; "Edit safety page" shows briefly while loading a page that turns out not to be yours). S03.1 F3 was fixed at `/complete-epic`.
+- **Waiting on the user:** S03.3 F1. AC3's wording has the contributor submit a half-filled form offline, which can only show the "fix these fields" summary; the test completes the page first. The behaviour is right and C15 is met; only the wording is wrong. The architect's proposed rewording is in the [epic Verification](../epics/E03-write-submit-page/epic.md#verification). Acceptance criteria are frozen, so it stays unchanged until you approve it.
 
 ## 9. Changes
 

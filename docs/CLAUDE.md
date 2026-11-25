@@ -52,6 +52,7 @@ title: Sign up and log in
 type: feature
 status: draft                 # draft | building | in-review | qa | done
 covers: [US6]
+points: 3                     # story points: 1 | 2 | 3 | 5 | 8
 updated: 2026-11-02
 # ticket
 id: BE-01

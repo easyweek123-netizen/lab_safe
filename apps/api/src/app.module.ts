@@ -8,6 +8,8 @@ import { dataSourceOptions } from './db/data-source';
 import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
 import { MetaModule } from './modules/meta/meta.module';
+import { PhotosModule } from './modules/photos/photos.module';
+import { SubmissionsModule } from './modules/submissions/submissions.module';
 
 @Module({})
 export class AppModule {
@@ -25,6 +27,8 @@ export class AppModule {
         AuthModule,
         HealthModule,
         MetaModule,
+        PhotosModule,
+        SubmissionsModule,
         // One origin in test and production (design doc D7): every path outside `/api` gets the
         // built web app, falling back to `index.html`. `/api` paths go on to Nest's router, so an
         // unknown one is still the JSON 404. Express 5 needs the `{*path}` wildcard syntax.

@@ -5,7 +5,7 @@ title: Sign up, log in and log out
 type: feature
 status: done
 covers: [US6, NFR4, NFR5]
-updated: 2026-11-24
+updated: 2026-11-25
 ---
 
 # S02.1 Sign up, log in and log out
@@ -88,7 +88,7 @@ New `ErrorCode` values: `UNAUTHENTICATED`, `FORBIDDEN`, `INVALID_CREDENTIALS`, `
 
 - F2 (minor, review round 1): a logout that fails with a 500 or a network error shows no message (`apps/web/src/components/AccountMenu.tsx`).
 - ~~F3~~ fixed in S02.2 FE-02: the 375 px contributor-area check now uses a real account approved by the setup admin.
-- F4 (minor, review round 1): if a background refresh of "me" fails while a user is cached, the gate shows "Couldn't load, try again." and the header shows "Log in" (`RequireAccount.tsx`, `AccountMenu.tsx`).
+- ~~F4~~ fixed in [S03.3](../../E03-write-submit-page/S03.3-keep-work-offline/story.md) FE-01: a failed background refresh of "me" now keeps the page under the gate and the name in the header (`RequireAccount.tsx`, `AccountMenu.tsx`).
 
 ## Verification
 
@@ -113,3 +113,4 @@ Review [round 2](review.md) is APPROVE. `pnpm verify` exit 0 (shared 46, web 67,
 ## Changes
 
 - 2026-11-24 · `/complete-epic` (S02.2 review F5): Verification references updated to the current lines: `e2e/tests/accounts.spec.ts` (changed by S02.2 FE-02), `users.service.ts`, `RequireAccount.test.tsx` and `AccountMenu.test.tsx` (moved by S02.2 and S02.3); "Left open" notes that F3 is closed.
+- 2026-11-25 · E03 `/complete-epic`: known gap F4 marked fixed by S03.3 FE-01. The Verification's line references to `RequireAccount.test.tsx` and `AccountMenu.test.tsx` are as of 2026-11-24; S03.3 added tests to both files.

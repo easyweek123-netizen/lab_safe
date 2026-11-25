@@ -1,11 +1,14 @@
-import { screen, within } from '@testing-library/react';
+import { focusManager } from '@tanstack/react-query';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import { delay, http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { ME_KEY } from '../api/auth';
 import {
   adminUser,
   adminUsersHandler,
   approvedAccounts,
   approvedUser,
+  errorResponse,
   ME,
   meHandler,
   pendingUser,
@@ -190,5 +193,69 @@ describe('Account menu in the header', () => {
     const banner = screen.getByRole('banner');
     expect(await within(banner).findByRole('link', { name: 'Log in' })).toBeInTheDocument();
     expect(within(banner).queryByRole('link', { name: 'Accounts' })).not.toBeInTheDocument();
+  });
+});
+
+describe('Account menu through a failed refresh', () => {
+  afterEach(() => {
+    focusManager.setFocused(undefined);
+  });
+
+  /** `me` answers `first`, then whatever `next` returns; the window is refocused once loaded. */
+  async function refreshWith(first: typeof approvedUser, next: () => Response) {
+    let calls = 0;
+    server.use(
+      adminUsersHandler([]),
+      http.get(ME, () => {
+        calls += 1;
+        return calls === 1 ? HttpResponse.json({ user: first }) : next();
+      }),
+    );
+    const { queryClient } = renderApp('/');
+    const banner = screen.getByRole('banner');
+    expect(await within(banner).findByText(first.name)).toBeInTheDocument();
+
+    act(() => {
+      focusManager.setFocused(false);
+      focusManager.setFocused(true);
+    });
+    await waitFor(() => expect(calls).toBe(2));
+    await waitFor(() => expect(queryClient.getQueryState(ME_KEY)?.fetchStatus).toBe('idle'));
+    return banner;
+  }
+
+  it.each([
+    ['a network error', () => HttpResponse.error()],
+    ['a 500', () => errorResponse(500, 'INTERNAL_ERROR', 'Internal server error')],
+  ])(
+    'S03.3 AC1 keeps the name, links and "Log out" when a refresh fails with %s',
+    async (_label, failure) => {
+      const banner = await refreshWith(adminUser, failure);
+
+      expect(within(banner).getByText(adminUser.name)).toBeInTheDocument();
+      expect(within(banner).getByRole('link', { name: 'Contributor area' })).toBeInTheDocument();
+      expect(within(banner).getByRole('link', { name: 'Sign-ups' })).toBeInTheDocument();
+      expect(within(banner).getByRole('link', { name: 'Accounts' })).toBeInTheDocument();
+      expect(within(banner).getByRole('button', { name: 'Log out' })).toBeInTheDocument();
+      expect(within(banner).queryByRole('link', { name: 'Log in' })).not.toBeInTheDocument();
+    },
+  );
+
+  it('S03.3 AC2 shows "Log in" when a refresh succeeds with {user: null}', async () => {
+    await refreshWith(approvedUser, () => HttpResponse.json({ user: null }));
+
+    await expectLoggedOutHeader();
+  });
+
+  it('S03.3 AC2 hides the admin links when a refresh succeeds with the admin role removed', async () => {
+    const banner = await refreshWith(adminUser, () =>
+      HttpResponse.json({ user: { ...adminUser, role: 'CONTRIBUTOR' } }),
+    );
+
+    await waitFor(() =>
+      expect(within(banner).queryByRole('link', { name: 'Sign-ups' })).not.toBeInTheDocument(),
+    );
+    expect(within(banner).queryByRole('link', { name: 'Accounts' })).not.toBeInTheDocument();
+    expect(within(banner).getByText(adminUser.name)).toBeInTheDocument();
   });
 });

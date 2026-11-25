@@ -30,7 +30,7 @@ Launch **architect** in Mode 1 with the path of `epic.md`. On a revision, pass t
 3. Every story acceptance criterion (`AC1` …) is covered by at least one ticket.
 4. `node .claude/tools/docs-check.mjs` reports no problems.
 
-If something is missing, send it back to the architect, at most twice, then report what is still missing.
+If something is missing, stop and report problem.
 
 ## Step 5: Report and stop
 

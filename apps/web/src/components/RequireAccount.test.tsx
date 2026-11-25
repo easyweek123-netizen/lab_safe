@@ -1,12 +1,15 @@
 import type { CurrentUser } from '@labsafe/shared';
-import { screen, waitFor } from '@testing-library/react';
+import { focusManager, onlineManager, type QueryClient } from '@tanstack/react-query';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import { delay, http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { ME_KEY } from '../api/auth';
 import {
   ADMIN_USERS,
   adminUser,
   adminUsersHandler,
   approvedUser,
+  errorResponse,
   ME,
   meHandler,
   pendingUser,
@@ -245,5 +248,188 @@ describe('Account gate on /admin/sign-ups', () => {
     renderApp('/admin/sign-ups');
 
     expect(await screen.findByRole('heading', { level: 1, name: 'Sign-ups' })).toBeInTheDocument();
+  });
+});
+
+/** How a background refresh of `me` fails: a network error or a 500. */
+const FAILURES = [
+  ['a network error', () => HttpResponse.error()],
+  ['a 500', () => errorResponse(500, 'INTERNAL_ERROR', 'Internal server error')],
+] as const;
+
+/**
+ * A server where `me` answers `approvedUser` first and then whatever `next` returns, counting the
+ * requests.
+ */
+function setUpRefresh(next: () => Response) {
+  const state = { calls: 0 };
+  server.use(
+    http.get(ME, () => {
+      state.calls += 1;
+      return state.calls === 1 ? HttpResponse.json({ user: approvedUser }) : next();
+    }),
+  );
+  return state;
+}
+
+/** Moves focus away from the window and back, as TanStack Query sees it: a background refresh. */
+function refocusWindow() {
+  act(() => {
+    focusManager.setFocused(false);
+    focusManager.setFocused(true);
+  });
+}
+
+/** Waits until the refresh of `me` has settled with `status`. */
+async function expectMeSettled(queryClient: QueryClient, status: 'error' | 'success') {
+  await waitFor(() => {
+    const state = queryClient.getQueryState(ME_KEY);
+    expect(state?.fetchStatus).toBe('idle');
+    expect(state?.status).toBe(status);
+  });
+}
+
+describe('Account gate through a failed refresh', () => {
+  afterEach(() => {
+    onlineManager.setOnline(true);
+    focusManager.setFocused(undefined);
+  });
+
+  it.each(FAILURES)(
+    'S03.3 AC1 keeps the contributor area and the header after a focus refresh fails with %s',
+    async (_label, failure) => {
+      const state = setUpRefresh(failure);
+      const { queryClient } = renderApp('/contribute');
+      expect(
+        await screen.findByRole('heading', { level: 1, name: 'Contributor area' }),
+      ).toBeInTheDocument();
+
+      refocusWindow();
+      await waitFor(() => expect(state.calls).toBe(2));
+      await expectMeSettled(queryClient, 'error');
+
+      expect(
+        screen.getByRole('heading', { level: 1, name: 'Contributor area' }),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.queryByText('Loading…')).not.toBeInTheDocument();
+      const banner = screen.getByRole('banner');
+      expect(within(banner).getByText(approvedUser.name)).toBeInTheDocument();
+      expect(within(banner).getByRole('button', { name: 'Log out' })).toBeInTheDocument();
+    },
+  );
+
+  it.each(FAILURES)(
+    'S03.3 AC1 keeps a half-filled "New safety page" form mounted when a refresh fails with %s',
+    async (_label, failure) => {
+      const state = setUpRefresh(failure);
+      const { user, queryClient } = renderApp('/contribute/new');
+      await user.type(await screen.findByLabelText('Name'), 'Rotary evaporator');
+      await user.type(screen.getByLabelText('Short description'), 'Removes solvents.');
+
+      refocusWindow();
+      await waitFor(() => expect(state.calls).toBe(2));
+      await expectMeSettled(queryClient, 'error');
+
+      expect(
+        screen.getByRole('heading', { level: 1, name: 'New safety page' }),
+      ).toBeInTheDocument();
+      expect(screen.getByLabelText('Name')).toHaveValue('Rotary evaporator');
+      expect(screen.getByLabelText('Short description')).toHaveValue('Removes solvents.');
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    },
+  );
+
+  it('S03.3 AC1 keeps the form while a refresh after reconnecting fails, and while a second refresh runs', async () => {
+    let calls = 0;
+    server.use(
+      http.get(ME, async () => {
+        calls += 1;
+        if (calls === 1) {
+          return HttpResponse.json({ user: approvedUser });
+        }
+        if (calls === 2) {
+          return HttpResponse.error();
+        }
+        await delay('infinite');
+        return HttpResponse.json({ user: approvedUser });
+      }),
+    );
+    const { user, queryClient } = renderApp('/contribute/new');
+    await user.type(await screen.findByLabelText('Name'), 'Rotary evaporator');
+
+    act(() => {
+      onlineManager.setOnline(false);
+      onlineManager.setOnline(true);
+    });
+    await waitFor(() => expect(calls).toBe(2));
+    await expectMeSettled(queryClient, 'error');
+
+    // A second refresh starts while the last one has failed (error and fetching at once).
+    refocusWindow();
+    await waitFor(() => expect(calls).toBe(3));
+
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Name')).toHaveValue('Rotary evaporator');
+    expect(within(screen.getByRole('banner')).getByText(approvedUser.name)).toBeInTheDocument();
+  });
+
+  it('S03.3 AC2 still shows "Couldn\'t load, try again." and Retry when "me" never loaded', async () => {
+    server.use(http.get(ME, () => HttpResponse.error()));
+    renderApp('/contribute/new');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't load, try again.");
+    expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'New safety page' })).not.toBeInTheDocument();
+    expect(
+      within(screen.getByRole('banner')).getByRole('link', { name: 'Log in' }),
+    ).toBeInTheDocument();
+  });
+
+  it('S03.3 AC2 sends the person to the login when a refresh succeeds with {user: null}', async () => {
+    setUpRefresh(() => HttpResponse.json({ user: null }));
+    const { router } = renderApp('/contribute');
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Contributor area' }),
+    ).toBeInTheDocument();
+
+    refocusWindow();
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'Log in' })).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/login');
+    expect(router.state.location.search).toBe('?next=/contribute');
+  });
+
+  it('S03.3 AC2 shows the not-approved notice when a refresh succeeds with a REJECTED status', async () => {
+    setUpRefresh(() => HttpResponse.json({ user: { ...approvedUser, status: 'REJECTED' } }));
+    renderApp('/contribute');
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Contributor area' }),
+    ).toBeInTheDocument();
+
+    refocusWindow();
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Sign-up not approved' }),
+    ).toBeInTheDocument();
+  });
+
+  it('S03.3 AC2 shows "No access" on /admin/sign-ups when a refresh succeeds with the admin role removed', async () => {
+    let calls = 0;
+    server.use(
+      adminUsersHandler([]),
+      http.get(ME, () => {
+        calls += 1;
+        return HttpResponse.json({
+          user: calls === 1 ? adminUser : { ...adminUser, role: 'CONTRIBUTOR' },
+        });
+      }),
+    );
+    renderApp('/admin/sign-ups');
+    expect(await screen.findByRole('heading', { level: 1, name: 'Sign-ups' })).toBeInTheDocument();
+
+    refocusWindow();
+
+    expect(await screen.findByRole('heading', { level: 1, name: 'No access' })).toBeInTheDocument();
   });
 });
