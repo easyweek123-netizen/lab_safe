@@ -23,6 +23,8 @@ const twoSubmissions = MySubmissions.parse({
       name: 'Fume hood',
       status: 'PENDING',
       submittedAt: '2026-11-24T15:30:00.000Z',
+      slug: null,
+      reviewNote: null,
     },
     ...mySubmissionsFixture.submissions,
     {
@@ -30,6 +32,8 @@ const twoSubmissions = MySubmissions.parse({
       name: 'Centrifuge',
       status: 'PENDING',
       submittedAt: '2026-11-02T09:00:00.000Z',
+      slug: null,
+      reviewNote: null,
     },
   ],
 });
@@ -158,5 +162,79 @@ describe('My submissions on /contribute', () => {
       'href',
       '/contribute/submissions/3f2e1d0c-9b8a-4c7d-8e6f-5a4b3c2d1e02',
     );
+  });
+
+  it('S04.2 AC10 shows an approved row as "Status: Approved" with its name linking to the public page', async () => {
+    const approvedList = MySubmissions.parse({
+      submissions: [
+        twoSubmissions.submissions[0],
+        {
+          ...mySubmissionsFixture.submissions[0],
+          status: 'APPROVED',
+          slug: 'rotary-evaporator',
+        },
+      ],
+    });
+    server.use(meHandler(approvedUser), mySubmissionsHandler(approvedList));
+    renderApp(PAGE);
+
+    const rows = within(await findList()).getAllByRole('listitem');
+    const [pending, approved] = rows as [HTMLElement, HTMLElement];
+    expect(within(approved).getByText('Status: Approved')).toBeInTheDocument();
+    expect(within(approved).getByRole('link', { name: 'Rotary evaporator' })).toHaveAttribute(
+      'href',
+      '/instruments/rotary-evaporator',
+    );
+    // Nothing offers to edit the approved page.
+    expect(within(approved).getAllByRole('link')).toHaveLength(1);
+    expect(
+      screen
+        .getAllByRole('link')
+        .some((link) =>
+          link.getAttribute('href')?.endsWith(mySubmissionsFixture.submissions[0]?.id ?? '-'),
+        ),
+    ).toBe(false);
+    // A pending row keeps its edit link.
+    expect(within(pending).getByText('Status: Pending')).toBeInTheDocument();
+    expect(within(pending).getByRole('link', { name: 'Fume hood' })).toHaveAttribute(
+      'href',
+      '/contribute/submissions/3f2e1d0c-9b8a-4c7d-8e6f-5a4b3c2d1e02',
+    );
+  });
+
+  it('S04.3 AC4 shows a rejected row as "Status: Rejected" with the admin\'s note word for word and the link to the fix form', async () => {
+    const note = 'The photo is blurry; add the waste step to Safe operation.\nThanks!';
+    const rejectedList = MySubmissions.parse({
+      submissions: [
+        twoSubmissions.submissions[0],
+        { ...mySubmissionsFixture.submissions[0], status: 'REJECTED', reviewNote: note },
+      ],
+    });
+    server.use(meHandler(approvedUser), mySubmissionsHandler(rejectedList));
+    renderApp(PAGE);
+
+    const rows = within(await findList()).getAllByRole('listitem');
+    const [pending, rejected] = rows as [HTMLElement, HTMLElement];
+    expect(within(rejected).getByText('Status: Rejected')).toBeInTheDocument();
+    const shownNote = within(rejected).getByText(/^Admin's note:/);
+    // Word for word, the line break kept (not collapsed into a space).
+    expect(shownNote.textContent).toBe(`Admin's note: ${note}`);
+    expect(shownNote).toHaveClass('whitespace-pre-wrap');
+    expect(within(rejected).getByRole('link', { name: 'Rotary evaporator' })).toHaveAttribute(
+      'href',
+      `/contribute/submissions/${mySubmissionsFixture.submissions[0]?.id ?? ''}`,
+    );
+    // A pending row has no note.
+    expect(within(pending).getByText('Status: Pending')).toBeInTheDocument();
+    expect(within(pending).queryByText(/Admin's note/)).not.toBeInTheDocument();
+  });
+
+  it('S04.3 AC6 shows a resubmitted row as "Status: Pending" with no note', async () => {
+    server.use(meHandler(approvedUser), mySubmissionsHandler(mySubmissionsFixture));
+    renderApp(PAGE);
+
+    const row = within(await findList()).getByRole('listitem');
+    expect(within(row).getByText('Status: Pending')).toBeInTheDocument();
+    expect(within(row).queryByText(/Admin's note/)).not.toBeInTheDocument();
   });
 });

@@ -170,7 +170,7 @@ describe('safety page tables', () => {
     expect(pending.upQueries.map(({ query }) => query)).toEqual([]);
   });
 
-  it('S03.1 AC13 the tables have exactly the E03 columns', async () => {
+  it('S03.1 AC13 the tables have exactly the E03 columns (plus E04 S04.2 AC3 review and publishing)', async () => {
     const rows = await dataSource.query<Array<{ table_name: string; columns: string[] }>>(
       `SELECT table_name, array_agg(column_name::text ORDER BY column_name) AS columns
        FROM information_schema.columns
@@ -204,6 +204,9 @@ describe('safety page tables', () => {
         'photo_id',
         'responsible_contact',
         'responsible_name',
+        'review_note',
+        'reviewed_at',
+        'reviewed_by',
         'safe_operation',
         'standard_lab_attire_only',
         'status',
@@ -212,8 +215,16 @@ describe('safety page tables', () => {
         'training_given_by',
         'training_required',
         'updated_at',
+        'version',
       ],
-      instruments: ['created_at', 'created_by', 'id', 'updated_at'],
+      instruments: [
+        'created_at',
+        'created_by',
+        'id',
+        'published_revision_id',
+        'slug',
+        'updated_at',
+      ],
       photos: [
         'bytes',
         'content_type',
@@ -271,13 +282,17 @@ describe('safety page tables', () => {
        WHERE tablename = 'instrument_revisions' ORDER BY indexname`,
     );
 
+    // E04 (S04.2 AC3) adds the unique (instrument_id, id) and the photo and queue indexes.
     expect(rows.map(({ indexname }) => indexname)).toEqual([
+      'instrument_revisions_instrument_id_id_key',
       'instrument_revisions_instrument_id_idx',
+      'instrument_revisions_photo_id_idx',
       'instrument_revisions_pkey',
+      'instrument_revisions_status_submitted_at_idx',
       'instrument_revisions_submitted_by_idx',
     ]);
-    expect(rows[0]?.indexdef).toMatch(/\(instrument_id\)/);
-    expect(rows[2]?.indexdef).toMatch(/\(submitted_by\)/);
+    expect(rows[1]?.indexdef).toMatch(/\(instrument_id\)/);
+    expect(rows[5]?.indexdef).toMatch(/\(submitted_by\)/);
   });
 
   it('S03.1 AC13 accepts a complete revision with its hazard and PPE rows', async () => {

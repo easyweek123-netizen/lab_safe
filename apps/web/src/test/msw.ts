@@ -10,8 +10,13 @@ import {
   MySubmissions,
   Photo,
   PROTECTIVE_EQUIPMENT,
+  PublishedSafetyPage,
   ErrorResponse,
+  ReviewDecision,
+  ReviewQueue,
+  ReviewSubmission,
   SafetyPageContent,
+  SafetyPageDisplay,
   SessionResponse,
   Submission,
   type AccountStatus,
@@ -196,6 +201,13 @@ export const rotavapContent = SafetyPageContent.parse({
   },
 });
 
+/** `rotavapContent` as `SafetyPageView` shows it (S04.1): its room filled in, never approved. */
+export const rotavapDisplay = SafetyPageDisplay.parse({
+  content: rotavapContent,
+  labRoom: metaListsFixture.labRooms[0],
+  lastApproved: null,
+});
+
 /** The 201 answer to submitting `rotavapContent` as `approvedUser`. Midday UTC, as above. */
 export const rotavapSubmission = Submission.parse({
   id: '3f2e1d0c-9b8a-4c7d-8e6f-5a4b3c2d1e01',
@@ -205,6 +217,8 @@ export const rotavapSubmission = Submission.parse({
   updatedAt: '2026-11-24T12:00:00.000Z',
   submittedBy: { id: approvedUser.id, name: approvedUser.name },
   content: rotavapContent,
+  slug: null,
+  reviewNote: null,
 });
 
 /** `GET /api/submissions/mine` with the submitted "Rotary evaporator". */
@@ -215,6 +229,8 @@ export const mySubmissionsFixture = MySubmissions.parse({
       name: rotavapSubmission.content.name,
       status: rotavapSubmission.status,
       submittedAt: rotavapSubmission.submittedAt,
+      slug: null,
+      reviewNote: null,
     },
   ],
 });
@@ -226,6 +242,117 @@ export function mySubmissionsHandler(list: MySubmissions) {
 
 /** `GET` and `PUT /api/submissions/:id` (S03.2). It also matches `/mine`: a GET handler must fall through (return undefined) for other ids. */
 export const SUBMISSION = '*/api/submissions/:id';
+
+/** `GET /api/admin/review-queue` (S04.1). */
+export const REVIEW_QUEUE = '*/api/admin/review-queue';
+
+/**
+ * Three pending pages, oldest submission first, as the server lists them: one by
+ * `approvedUser`, one by a second contributor and the signed-in admin's own. Midday UTC.
+ */
+export const reviewQueueFixture = ReviewQueue.parse({
+  items: [
+    {
+      id: '4a3b2c1d-0e9f-4a8b-9c7d-6e5f4a3b2c01',
+      name: 'Rotary evaporator',
+      kind: 'NEW',
+      submittedBy: { id: approvedUser.id, name: approvedUser.name },
+      submittedAt: '2026-11-23T12:00:00.000Z',
+    },
+    {
+      id: '4a3b2c1d-0e9f-4a8b-9c7d-6e5f4a3b2c02',
+      name: 'Fume hood',
+      kind: 'NEW',
+      submittedBy: { id: '5d7e1c2a-3b4f-4a6d-8e9f-0a1b2c3d4e06', name: 'Carla Contributor' },
+      submittedAt: '2026-11-24T12:00:00.000Z',
+    },
+    {
+      id: '4a3b2c1d-0e9f-4a8b-9c7d-6e5f4a3b2c03',
+      name: 'Centrifuge',
+      kind: 'NEW',
+      submittedBy: { id: adminUser.id, name: adminUser.name },
+      submittedAt: '2026-11-25T12:00:00.000Z',
+    },
+  ],
+});
+
+/** `GET /api/admin/review-queue` answering with `queue`. Use with `server.use(…)`. */
+export function reviewQueueHandler(queue: ReviewQueue) {
+  return http.get(REVIEW_QUEUE, () => HttpResponse.json(ReviewQueue.parse(queue)));
+}
+
+/** `GET /api/admin/submissions/:id` (S04.1). */
+export const ADMIN_SUBMISSION = '*/api/admin/submissions/:id';
+
+/** The queue's first page, "Rotary evaporator" by `approvedUser`, as the admin's preview loads it. */
+export const reviewSubmissionFixture = ReviewSubmission.parse({
+  id: reviewQueueFixture.items[0]?.id,
+  kind: 'NEW',
+  status: 'PENDING',
+  submittedAt: reviewQueueFixture.items[0]?.submittedAt,
+  submittedBy: { id: approvedUser.id, name: approvedUser.name },
+  version: 1,
+  page: rotavapDisplay,
+});
+
+/**
+ * `GET /api/admin/submissions/:id` answering with `submission` for its own id and 404 for any
+ * other. Use with `server.use(…)`.
+ */
+export function reviewSubmissionHandler(submission: ReviewSubmission) {
+  return http.get(ADMIN_SUBMISSION, ({ params }) =>
+    params.id === submission.id
+      ? HttpResponse.json(ReviewSubmission.parse(submission))
+      : errorResponse(404, 'NOT_FOUND', 'Not found.'),
+  );
+}
+
+/** `POST /api/admin/submissions/:id/approve` (S04.2). */
+export const APPROVE_SUBMISSION = '*/api/admin/submissions/:id/approve';
+
+/** The 200 answer to approving `reviewSubmissionFixture`: published at `rotary-evaporator`. */
+export const approveDecisionFixture = ReviewDecision.parse({
+  id: reviewSubmissionFixture.id,
+  status: 'APPROVED',
+  slug: 'rotary-evaporator',
+});
+
+/** `POST /api/admin/submissions/:id/reject` (S04.3). */
+export const REJECT_SUBMISSION = '*/api/admin/submissions/:id/reject';
+
+/** The 200 answer to rejecting `reviewSubmissionFixture`: a rejected page has no public address. */
+export const rejectDecisionFixture = ReviewDecision.parse({
+  id: reviewSubmissionFixture.id,
+  status: 'REJECTED',
+  slug: null,
+});
+
+/** `GET /api/instruments/:slug` (S04.2): a published page for anyone. */
+export const INSTRUMENT = '*/api/instruments/:slug';
+
+/**
+ * "Rotary evaporator" as the public page loads it once `adminUser` approved it: no contributor,
+ * no email, no version. Midday UTC, so the date is the same in every time zone of the lab.
+ */
+export const publishedPageFixture = PublishedSafetyPage.parse({
+  slug: approveDecisionFixture.slug,
+  page: {
+    ...rotavapDisplay,
+    lastApproved: { at: '2026-11-26T12:00:00.000Z', approverName: adminUser.name },
+  },
+});
+
+/**
+ * `GET /api/instruments/:slug` answering with `published` for its own slug and 404 for any other.
+ * Use with `server.use(…)`.
+ */
+export function publishedPageHandler(published: PublishedSafetyPage) {
+  return http.get(INSTRUMENT, ({ params }) =>
+    params.slug === published.slug
+      ? HttpResponse.json(PublishedSafetyPage.parse(published))
+      : errorResponse(404, 'NOT_FOUND', 'Not found.'),
+  );
+}
 
 export const handlers = [
   http.get('*/api/meta/lists', () => HttpResponse.json(metaListsFixture)),

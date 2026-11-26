@@ -25,6 +25,10 @@ export const Submission = z.object({
     name: z.string(),
   }),
   content: SafetyPageContent,
+  /** The public address, set only for an approved page (S04.2 AC10). */
+  slug: z.string().min(1).nullable(),
+  /** The admin's note, set only for a rejected page (S04.3 AC4). */
+  reviewNote: z.string().nullable(),
 });
 export type Submission = z.infer<typeof Submission>;
 
@@ -34,6 +38,10 @@ export const SubmissionSummary = z.object({
   name: z.string(),
   status: RevisionStatus,
   submittedAt: z.iso.datetime(),
+  /** The public address, set only for an approved page (S04.2 AC10). */
+  slug: z.string().min(1).nullable(),
+  /** The admin's note, set only for a rejected page (S04.3 AC4). */
+  reviewNote: z.string().nullable(),
 });
 export type SubmissionSummary = z.infer<typeof SubmissionSummary>;
 

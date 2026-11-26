@@ -47,7 +47,7 @@ function serverFields(error: unknown) {
 
 // The safety page form (S03.1 AC1, AC8–AC12, AC17), shared by the new page and the edit page
 // (S03.2): the five groups in PRD order, one error summary for every client and server problem,
-// and an `alert` for a failed submit. A failure never resets the form, so everything typed and
+// and an `alert` for a failed submit, cleared when a new photo is chosen (S04.4 AC3). A failure never resets the form, so everything typed and
 // the photo stay (decision E03-D7).
 export function SafetyPageForm({
   defaultValues = emptyFormValues,
@@ -123,7 +123,7 @@ export function SafetyPageForm({
         className="space-y-8"
       >
         {items.length > 0 && <ErrorSummary ref={summaryRef} items={items} />}
-        <IdentitySection />
+        <IdentitySection onPhotoChosen={() => setFailure(null)} />
         <RiskSection />
         <HazardsSection />
         <GuidelinesSection />

@@ -453,12 +453,16 @@ describe('/api/submissions', () => {
             name: 'Muffle furnace',
             status: 'PENDING',
             submittedAt: second.submittedAt,
+            slug: null,
+            reviewNote: null,
           },
           {
             id: first.id,
             name: 'Rotary evaporator',
             status: 'PENDING',
             submittedAt: first.submittedAt,
+            slug: null,
+            reviewNote: null,
           },
         ],
       });

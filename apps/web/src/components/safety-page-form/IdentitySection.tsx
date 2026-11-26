@@ -8,10 +8,15 @@ import { PhotoField } from './PhotoField';
 import { SectionFieldset } from './SectionFieldset';
 import { SelectField } from './SelectField';
 
+type IdentitySectionProps = {
+  /** Called whenever a new photo is chosen; the form clears its failure `alert` (S04.4 AC3). */
+  onPhotoChosen?: () => void;
+};
+
 // The Identity group of the safety page form (PRD §4.1, S03.1 AC1, AC2). The categories are the
 // shared PRD §4.2 list; the lab rooms come from `GET /api/meta/lists`, which the page has loaded
 // before it shows the form (AC18).
-export function IdentitySection() {
+export function IdentitySection({ onPhotoChosen }: IdentitySectionProps) {
   const {
     register,
     control,
@@ -42,6 +47,7 @@ export function IdentitySection() {
             value={field.value}
             onChange={field.onChange}
             error={fieldState.error?.message}
+            onFileChosen={onPhotoChosen}
           />
         )}
       />

@@ -86,7 +86,7 @@ test('S03.3 AC3 a network drop and a failed refresh keep the half-filled form an
   await page.getByRole('button', { name: 'Submit for review' }).click();
   await expect(
     page.getByText(
-      "Couldn't reach LabSafe. Your page is still here; check your connection and submit again.",
+      "Couldn't reach LabSafe. Your page is still here; check your connection and try again.",
     ),
   ).toBeVisible();
   await expect(page).toHaveURL('/contribute/new');

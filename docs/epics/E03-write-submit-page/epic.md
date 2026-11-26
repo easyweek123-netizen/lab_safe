@@ -165,7 +165,7 @@ None.
   - S03.1 F2: the error summary skips errors at `hazards.<i>.type` (the form can't produce that path today).
   - ~~S03.1 F3~~: fixed at `/complete-epic` — design.md "Data" now has the training CHECK's `IS NOT NULL`, the extra CHECKs and the `search_vector` deferral.
   - S03.1 B1: after a failed submit, the submit-failure alert stays when a re-uploaded photo also fails.
-  - S03.2 notes: the edit page's failure messages say "submit again" (S03.1 AC17 texts, required by AC6); while loading, h1 "Edit safety page" shows briefly even for a page that turns out not to be yours.
+  - S03.2 notes: ~~the edit page's failure messages say "submit again"~~ → fixed by S04.4; while loading, h1 "Edit safety page" shows briefly even for a page that turns out not to be yours.
   - S03.3 F1: AC3's wording has the contributor submit a half-filled form offline, which can only show validation errors; the test completes the page first. Rewording needs your approval.
 
 ### Migrations

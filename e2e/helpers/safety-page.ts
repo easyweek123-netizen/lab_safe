@@ -1,7 +1,8 @@
 /**
  * Shared steps of the safety page journeys (S03.1, S03.2): open the new page form from the
- * contributor area, fill in a complete "Rotary evaporator" page with the JPEG of
- * `fixtures/instrument.jpg`, and open a submission's edit page from My submissions.
+ * contributor area, fill in (and submit) a complete page (named "Rotary evaporator" unless the test gives it
+ * a unique name) with the JPEG of `fixtures/instrument.jpg`, and open a submission's edit page
+ * from My submissions.
  */
 import { resolve } from 'node:path';
 import { expect, type Page } from '@playwright/test';
@@ -25,11 +26,11 @@ function location(page: Page, label: string) {
 }
 
 /**
- * Fills in every required field of the open form with a "Rotary evaporator" page, uploads the
- * JPEG and returns the id of the stored photo (from the preview's address).
+ * Fills in every required field of the open form with a rotary evaporator page called `name`,
+ * uploads the JPEG and returns the id of the stored photo (from the preview's address).
  */
-export async function fillCompletePage(page: Page): Promise<string> {
-  await page.getByLabel('Name', { exact: true }).fill(ROTAVAP_NAME);
+export async function fillCompletePage(page: Page, name: string = ROTAVAP_NAME): Promise<string> {
+  await page.getByLabel('Name', { exact: true }).fill(name);
 
   await page.getByLabel('Photo', { exact: true }).setInputFiles(INSTRUMENT_JPEG);
   const preview = page.getByRole('img', { name: 'Photo of the instrument' });
@@ -104,4 +105,19 @@ export async function openSubmission(page: Page, name: string): Promise<string> 
     throw new Error(`The edit page has no id in its address: ${page.url()}`);
   }
   return id;
+}
+
+/**
+ * Opens the new page form from `/contribute`, fills in a complete page called `name`, submits it
+ * and waits for the confirmation (S03.1 AC1); returns the id of the stored photo.
+ */
+export async function submitCompletePage(page: Page, name: string): Promise<string> {
+  await openNewSafetyPage(page);
+  const photoId = await fillCompletePage(page, name);
+  await page.getByRole('button', { name: 'Submit for review' }).click();
+  await expect(page).toHaveURL('/contribute');
+  await expect(page.getByRole('status')).toHaveText(
+    `${name} was submitted and is waiting for review.`,
+  );
+  return photoId;
 }

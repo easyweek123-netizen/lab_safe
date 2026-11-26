@@ -13,6 +13,8 @@ import {
   meHandler,
   pendingUser,
   rejectedUser,
+  reviewQueueFixture,
+  reviewQueueHandler,
   server,
 } from '../test/msw';
 import { renderApp } from '../test/render';
@@ -193,6 +195,42 @@ describe('Account menu in the header', () => {
     const banner = screen.getByRole('banner');
     expect(await within(banner).findByRole('link', { name: 'Log in' })).toBeInTheDocument();
     expect(within(banner).queryByRole('link', { name: 'Accounts' })).not.toBeInTheDocument();
+  });
+
+  it('S04.1 AC1 shows the "Pages to review" link to an admin and it opens /admin/review', async () => {
+    server.use(meHandler(adminUser), reviewQueueHandler(reviewQueueFixture));
+    const { user, router } = renderApp('/');
+
+    const banner = screen.getByRole('banner');
+    const link = await within(banner).findByRole('link', { name: 'Pages to review' });
+    expect(link).toHaveAttribute('href', '/admin/review');
+    await user.click(link);
+
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Pages to review' }),
+    ).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe('/admin/review');
+  });
+
+  it.each([
+    ['an approved contributor', approvedUser],
+    ['a pending account', pendingUser],
+    ['a rejected account', rejectedUser],
+  ])('S04.1 AC8 hides the "Pages to review" link from %s', async (_label, account) => {
+    server.use(meHandler(account));
+    renderApp('/');
+
+    const banner = screen.getByRole('banner');
+    expect(await within(banner).findByText(account.name)).toBeInTheDocument();
+    expect(within(banner).queryByRole('link', { name: 'Pages to review' })).not.toBeInTheDocument();
+  });
+
+  it('S04.1 AC8 hides the "Pages to review" link from an anonymous visitor', async () => {
+    renderApp('/');
+
+    const banner = screen.getByRole('banner');
+    expect(await within(banner).findByRole('link', { name: 'Log in' })).toBeInTheDocument();
+    expect(within(banner).queryByRole('link', { name: 'Pages to review' })).not.toBeInTheDocument();
   });
 });
 

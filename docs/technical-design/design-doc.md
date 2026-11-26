@@ -1,6 +1,6 @@
 ---
 status: approved
-updated: 2026-11-25
+updated: 2026-11-26
 ---
 
 # LabSafe design doc
@@ -30,7 +30,7 @@ A pnpm workspace:
 
 ```
 apps/api/         NestJS server
-  src/modules/    auth · users · instruments (entities only, since E03) · submissions · review · photos · assistant · meta
+  src/modules/    auth · users · instruments (entities since E03; public reading since E04) · submissions · review · photos · assistant · meta
   src/common/     config, error filter, guards, Zod pipe
   src/db/         data source, migrations, seeds
   test/           backend integration tests (against labsafe_test)
@@ -100,7 +100,9 @@ erDiagram
     text status "PENDING, APPROVED or REJECTED"
     uuid submitted_by FK
     uuid reviewed_by FK
-    text review_note
+    timestamptz reviewed_at
+    text review_note "REJECTED only"
+    int version "plus 1 on every author save (E04-D2)"
     text name
     text category
     uuid lab_room_id FK
@@ -148,8 +150,8 @@ erDiagram
 | `users` | One account | email (unique, case-insensitive), name, password_hash, role, status |
 | `sessions` | One logged-in browser | token_hash (unique), user_id, expires_at |
 | `lab_rooms` | One room of the lab | code, name. Filled in by a migration with placeholder rooms (PRD §7) |
-| `instruments` | One instrument's identity | slug (empty until the first approval, then never changes; E03-D3), published_revision_id, created_by, deleted_at |
-| `instrument_revisions` | One version of a safety page | *Workflow:* instrument_id, kind, status, submitted_by, submitted_at, reviewed_by, reviewed_at, review_note. *Content:* every field from PRD §4.1, listed in the next table |
+| `instruments` | One instrument's identity | slug (empty until the first approval, then never changes; lowercase with hyphens, unique, `-2`, `-3` … for a taken name; E03-D3, E04-D3), published_revision_id (set together with slug), created_by, deleted_at |
+| `instrument_revisions` | One version of a safety page | *Workflow:* instrument_id, kind, status, submitted_by, submitted_at, reviewed_by, reviewed_at, review_note (only on a REJECTED revision), version (the admin approves the version they saw; E04-D2). *Content:* every field from PRD §4.1, listed in the next table |
 | `revision_hazards` | One hazard on one version | revision_id, hazard_type, note |
 | `revision_protective_equipment` | One protective-equipment item on one version | revision_id, equipment_item, note |
 | `photos` | One uploaded photo | owner_id, content_type, bytes (the re-encoded image), width, height |
@@ -173,21 +175,21 @@ erDiagram
 | photo_id | Photo | |
 | search_vector | (none) | Computed by the database for the assistant's full-text search; added by E06/E07, not by E03 |
 
-Hazards and protective equipment get their own tables because students filter by them (US2). Emergency equipment is only displayed, so a JSON object is enough. Each epic's migration adds only the columns that epic writes (E03-D6): E03 created `photos`, `instruments` (without `slug`, `published_revision_id` and `deleted_at`), `instrument_revisions` (without the review columns and `search_vector`) and the two child tables.
+Hazards and protective equipment get their own tables because students filter by them (US2). Emergency equipment is only displayed, so a JSON object is enough. Each epic's migration adds only the columns that epic writes (E03-D6): E03 created `photos`, `instruments` (without `slug`, `published_revision_id` and `deleted_at`), `instrument_revisions` (without the review columns and `search_vector`) and the two child tables. E04 added `slug` and `published_revision_id`, and `reviewed_by`, `reviewed_at`, `review_note` and `version` with the review CHECK (PENDING has no reviewer, date or note; APPROVED has reviewer and date; REJECTED also a non-blank note).
 
 | # | Invariant | Requirement | Enforced by |
 | --- | --- | --- | --- |
 | I1 | The public sees only the published revision of a non-deleted instrument | R1, US8, US13 | All public reads go through `PublishedInstrumentsQuery`; integration tests act as an anonymous visitor (M3) |
-| I2 | A published revision belongs to its instrument and is APPROVED | R1 | Composite foreign key (instrument_id, published_revision_id) → revisions (instrument_id, id); the approve transaction sets the status and the pointer together |
+| I2 | A published revision belongs to its instrument and is APPROVED | R1 | Composite foreign key `instruments (id, published_revision_id) → instrument_revisions (instrument_id, id)`; CHECK: slug and pointer both set or both empty; the approve transaction locks the revision, checks it is PENDING in the version the admin saw, and sets the status and the pointer together; `PublishedInstrumentsQuery` also filters APPROVED |
 | I3 | At most one PENDING revision per instrument | R6 | Partial unique index on `instrument_revisions(instrument_id) WHERE status = 'PENDING'` |
 | I4 | A submitted page has every required field | R3 | The shared Zod `SafetyPageContent` schema, for create and edit (lists every missing field, including "hazards ≥ 1 or no_significant_hazards, not both" and the same for protective equipment with standard_lab_attire_only); the service writes the revision and its child rows from the parsed body in one transaction; NOT NULL and non-empty CHECKs, and the training and emergency-equipment CHECKs |
 | I5 | List values come only from the fixed lists | R4 | Constants in `packages/shared`; CHECK (value IN …) constraints generated from the same constants; lab rooms through a foreign key |
 | I6 | Training required ⇒ hazard level is not LOW | R5 | Table CHECK constraint plus a Zod refinement |
 | I7 | There is always at least one admin | US14 | Demotion in a transaction that locks the admin rows (`SELECT … FOR UPDATE`) and counts them |
 | I8 | Only approved contributors and admins write content | US6, NFR4 | A guard that loads the user from the session on every request, so a new status or role takes effect immediately |
-| I9 | A contributor edits only their own PENDING or REJECTED revisions | NFR4, US9 | A service check (`submitted_by = me`), returning 404 otherwise |
+| I9 | A contributor edits only their own PENDING or REJECTED revisions | NFR4, US9 | A service check (`submitted_by = me`) under a row lock, returning 404 otherwise; the author of an APPROVED revision gets 409 `ALREADY_REVIEWED` (E04-D8); saving a REJECTED one resubmits it |
 | I10 | AI messages per UTC hour never exceed the limit | R2 | An atomic `INSERT … ON CONFLICT DO UPDATE … WHERE message_count < limit RETURNING`; no row returned means the limit is reached |
-| I11 | A photo is served only when its revision is published, or to its owner or an admin | R1 | A check in `PhotosService` before any bytes are streamed |
+| I11 | A photo is served only when its revision is published, or to its owner or an admin | R1 | A check in `PhotosService` before any bytes are streamed, asking `PublishedInstrumentsQuery` whether the photo is a published revision's; a replaced photo stays private (E04-D7) |
 
 ## 4. API surface
 
@@ -208,7 +210,7 @@ Everything is under `/api`. **Who may call:** Public = anyone; Signed-in = any s
 | Method | Path | Who may call | Purpose | Requirement |
 | --- | --- | --- | --- | --- |
 | GET | /instruments | Public | Search (`q`) and filters (category, room, hazard, protective_equipment, hazard_level) | US1, US2 |
-| GET | /instruments/:slug | Public | Published page | US3, US4 |
+| GET | /instruments/:slug | Public | Published page; any slug that isn't published is 404 | US3, US4 |
 | GET | /photos/:id | Public* | Photo bytes as `image/jpeg`, `Cache-Control: private, no-cache` (*I11 applies in the service; everyone else gets 404, E03-D4) | US3, US7, R1 |
 | POST | /assistant/ask | Public | One question → answer, sources or "unknown" | US5, R2 |
 
@@ -221,7 +223,7 @@ Everything is under `/api`. **Who may call:** Public = anyone; Signed-in = any s
 | POST | /instruments/:slug/updates | Contributor | Suggest an update (a new PENDING revision) | US8, R6 |
 | GET | /submissions/mine | Contributor | My submissions with status and note | US9 |
 | GET | /submissions/:id | Public* | One submission (*the service allows the author and approved admins; everyone else gets 404, E03-D4) | US7, US9, US12 |
-| PUT | /submissions/:id | Public* | Edit a PENDING (E03) or REJECTED (E04) revision; it becomes PENDING again (*the service allows only the approved author, I9; everyone else, admins included, gets 404, E03-D4) | US7, US9 |
+| PUT | /submissions/:id | Public* | Edit a PENDING revision (E03), or resubmit a REJECTED one: PENDING again with a new `submitted_at` and the note cleared (E04-D5) (*the service allows only the approved author, I9; the author of an APPROVED revision gets 409 `ALREADY_REVIEWED`; everyone else, admins included, gets 404, E03-D4) | US7, US9 |
 
 **Admin**
 
@@ -231,8 +233,9 @@ Everything is under `/api`. **Who may call:** Public = anyone; Signed-in = any s
 | POST | /admin/users/:id/approve | Admin | Approve a sign-up | US10 |
 | POST | /admin/users/:id/reject | Admin | Reject a sign-up | US10 |
 | PUT | /admin/users/:id/role | Admin | Make or remove an admin (I7) | US14 |
-| GET | /admin/review-queue | Admin | Pending new pages and updates, oldest first | US11 |
-| POST | /admin/submissions/:id/approve | Admin | Publish (I2) | US12 |
+| GET | /admin/review-queue | Admin | Pending new pages and updates, oldest `submitted_at` first | US11 |
+| GET | /admin/submissions/:id | Admin | The preview: one submission of any status as `SafetyPageDisplay`, with its `version` (E04-D4) | US12 |
+| POST | /admin/submissions/:id/approve | Admin | Publish the `version` the admin saw (I2, E04-D2) | US12 |
 | POST | /admin/submissions/:id/reject | Admin | Reject; a note is required | US12 |
 | DELETE | /admin/instruments/:slug | Admin | Soft delete (sets deleted_at) | US13 |
 
@@ -362,7 +365,7 @@ Every error response looks like this:
 | 401 | UNAUTHENTICATED · INVALID_CREDENTIALS | No session or an expired one · wrong email or password at login (one message for both) |
 | 403 | FORBIDDEN | Wrong role, the account is not approved, the route declares no access level, or a data-changing request failed the origin check |
 | 404 | NOT_FOUND | Missing, or not visible to this caller. Unpublished content is always a 404, never a 403, so its existence is not revealed (R1) |
-| 409 | PENDING_UPDATE_EXISTS · LAST_ADMIN · EMAIL_TAKEN · USER_NOT_PENDING · USER_NOT_APPROVED | I3, I7, sign-up, approving or rejecting an account that is no longer pending, changing the role of an account that is not approved |
+| 409 | PENDING_UPDATE_EXISTS · LAST_ADMIN · EMAIL_TAKEN · USER_NOT_PENDING · USER_NOT_APPROVED · ALREADY_REVIEWED · SUBMISSION_CHANGED | I3, I7, sign-up, approving or rejecting an account that is no longer pending, changing the role of an account that is not approved, approving or rejecting a page that is no longer pending (or the author saving an approved one), approving a page the author changed since the preview |
 | 413 / 415 | PHOTO_TOO_LARGE · PHOTO_TYPE | Photo upload over 5 MB · content not a JPEG or PNG (E03). A request without a file is 400 `VALIDATION_FAILED` on `photo`; the JSON body parser's 413 stays `REQUEST_REJECTED` |
 | 429 | ASSISTANT_BUSY | R2 limit reached, or the provider is unavailable |
 
@@ -444,3 +447,4 @@ Extra scripts: `db:migrate` and `db:seed` (development database; each run needs 
 - **2026-11-16** (E01 design update after the fixes of epic-review F1, F2): §8 names the E01 codes (`SERVICE_UNAVAILABLE`, `REQUEST_REJECTED`, `INTERNAL_ERROR`) and says a non-`HttpException` error keeps its 4xx status only with `expose === true`; §9 adds `pnpm qa:serve` to the commands that share `labsafe_test` and describes the test-database guard (no `?`/`#`, `localhost`/`127.0.0.1` only, `labsafe_test`, port 5443).
 - **2026-11-24** (E02 `/complete-epic`): §4 `GET /auth/me` is Public and answers `{user: null}` to an anonymous visitor (E02-D3); Signed-in means any status, Admin an approved admin; `GET /admin/users` names its two `status` values. §5 describes what was built: the `labsafe_session` cookie with `Secure` from `COOKIE_SECURE`, the `RequestOriginGuard` rule and the dev proxy, the four access levels including `@SignedIn()`, and the first admin from `BOOTSTRAP_ADMIN_*` (all three or none; `SEED_ADMIN_*` is not read). §8 adds `INVALID_CREDENTIALS`, `USER_NOT_PENDING`, `USER_NOT_APPROVED` and the other 403 causes. §9 and D14: test titles use story and criterion since E02; `pnpm e2e` starts with a setup admin. §10 adds `WEB_DIST_DIR` and the `COOKIE_SECURE` and `BOOTSTRAP_ADMIN_*` rules. §11 adds the first-sign-up risk of `BOOTSTRAP_ADMIN_EMAIL` (S02.2 review F3).
 - **2026-11-25** (E03 `/complete-epic`): §2 `instruments` holds only entities so far. §3 `slug` is empty until the first approval and then never changes (E03-D3); each epic adds only the columns it writes (E03-D6), so `search_vector` comes with E06/E07; the shape of `emergency_equipment`; I4 says where completeness is enforced as built (the shared `SafetyPageContent` schema, the transaction from the parsed body, the CHECKs). §4: `GET` and `PUT /submissions/:id` and `GET /photos/:id` are Public at the guard and decided by the service with 404 for everyone else (E03-D4); `POST /photos` names its field and response. §7 "Photos": the format check, the E03-D8 re-encoding and the served headers. §8: when `PHOTO_TOO_LARGE` and `PHOTO_TYPE` apply, the 400 without a file, and that the body parser's 413 stays `REQUEST_REJECTED`.
+- **2026-11-26** (E04 `/complete-epic`): §2 `instruments` is a real module with the public read. §3 the diagram and tables add `reviewed_at`, `version` and the slug rules; the E04 columns and the review CHECK; I2 names the composite key as built (`instruments (id, published_revision_id)`), the published CHECK and the version check; I9 the 409 for an approved page (E04-D8) and the resubmission; I11 the published-photo check (E04-D7). §4 adds `GET /admin/submissions/:id` (E04-D4), says approve publishes the version seen (E04-D2) and what `PUT /submissions/:id` does with a rejected or approved page. §8 adds `ALREADY_REVIEWED` and `SUBMISSION_CHANGED`.

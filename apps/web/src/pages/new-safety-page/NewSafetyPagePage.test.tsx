@@ -284,6 +284,134 @@ describe('NewSafetyPagePage', { timeout: 30_000 }, () => {
     expect(screen.getByText('Upload a photo', { selector: 'p' })).toBeInTheDocument();
   });
 
+  it('S04.4 AC2 moves focus to "Change photo" when "Photo" is followed with a photo shown', async () => {
+    setUp();
+    submitAnswers(() =>
+      HttpResponse.json(
+        {
+          statusCode: 400,
+          code: 'VALIDATION_FAILED',
+          message: 'Validation failed',
+          fields: [{ path: 'photoId', message: 'Upload a photo' }],
+        },
+        { status: 400 },
+      ),
+    );
+    const { user } = await openForm();
+    await fillCompletePage(user);
+    await pressSubmit(user);
+    const summary = await screen.findByRole('alert');
+
+    await user.click(within(summary).getByRole('link', { name: 'Photo' }));
+
+    const change = screen.getByRole('button', { name: 'Change photo' });
+    expect(change).toHaveFocus();
+    expect(change).toHaveAccessibleDescription('JPEG or PNG, at most 5 MB Upload a photo');
+  });
+
+  it('S04.4 AC2 moves focus to the file input when "Photo" is followed with no photo shown', async () => {
+    setUp();
+    const { user } = await openForm();
+    await pressSubmit(user);
+    const summary = await screen.findByRole('alert');
+
+    await user.click(within(summary).getByRole('link', { name: 'Photo' }));
+
+    expect(screen.getByLabelText('Photo')).toHaveFocus();
+  });
+
+  it('S04.4 AC3 shows only the photo message after an offline submit and a refused photo', async () => {
+    setUp();
+    submitAnswers(() => HttpResponse.error());
+    const { user } = await openForm();
+    await fillCompletePage(user);
+    onlineManager.setOnline(false);
+    await pressSubmit(user);
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+
+    onlineManager.setOnline(true);
+    server.use(
+      http.post(PHOTOS, () =>
+        errorResponse(415, 'PHOTO_TYPE', 'Only JPEG or PNG photos are accepted.'),
+      ),
+    );
+    await user.upload(
+      screen.getByLabelText('Photo'),
+      new File([new Uint8Array(2048)], 'report.pdf.jpg', { type: 'image/jpeg' }),
+    );
+
+    expect(await screen.findByText('Only JPEG or PNG photos are accepted.')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('img', { name: 'Photo of the instrument' })).toBeInTheDocument();
+  });
+
+  it('S04.4 AC3 clears the old failure alert when the new photo uploads', async () => {
+    setUp();
+    submitAnswers(() => HttpResponse.error());
+    const { user } = await openForm();
+    await fillCompletePage(user);
+    onlineManager.setOnline(false);
+    await pressSubmit(user);
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+
+    onlineManager.setOnline(true);
+    await user.upload(
+      screen.getByLabelText('Photo'),
+      new File([new Uint8Array(2048)], 'better.jpg', { type: 'image/jpeg' }),
+    );
+
+    await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument());
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Submit for review' })).toBeEnabled();
+  });
+
+  it('S04.4 AC4 says "try again" when submitting fails offline', async () => {
+    setUp();
+    submitAnswers(() => HttpResponse.error());
+    const { user } = await openForm();
+    await fillCompletePage(user);
+    onlineManager.setOnline(false);
+
+    await pressSubmit(user);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      "Couldn't reach LabSafe. Your page is still here; check your connection and try again.",
+    );
+  });
+
+  it('S04.4 AC4 says "try again here" when submitting gets a 401', async () => {
+    setUp();
+    submitAnswers(() => errorResponse(401, 'UNAUTHENTICATED', 'Log in first'));
+    const { user } = await openForm();
+    await fillCompletePage(user);
+
+    await pressSubmit(user);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Your session has ended. Log in again in another tab, then try again here.',
+    );
+  });
+
+  it('S04.4 AC4 says "try again here" when a photo upload gets a 401', async () => {
+    setUp();
+    server.use(http.post(PHOTOS, () => errorResponse(401, 'UNAUTHENTICATED', 'Log in first')));
+    const { user } = await openForm();
+
+    await user.upload(
+      screen.getByLabelText('Photo'),
+      new File([new Uint8Array(2048)], 'rotavap.jpg', { type: 'image/jpeg' }),
+    );
+
+    expect(
+      await screen.findByText(
+        'Your session has ended. Log in again in another tab, then try again here.',
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText('Photo')).toHaveAccessibleDescription(
+      'JPEG or PNG, at most 5 MB Your session has ended. Log in again in another tab, then try again here.',
+    );
+  });
+
   it('S03.1 AC10 names exactly the missing note, PPE, emergency location and trainer', async () => {
     setUp();
     const sent = submitAnswers(() => HttpResponse.json(rotavapSubmission, { status: 201 }));
@@ -357,7 +485,7 @@ describe('NewSafetyPagePage', { timeout: 30_000 }, () => {
     [
       'a network error',
       () => HttpResponse.error(),
-      "Couldn't reach LabSafe. Your page is still here; check your connection and submit again.",
+      "Couldn't reach LabSafe. Your page is still here; check your connection and try again.",
     ],
     [
       'a 500',
@@ -367,7 +495,7 @@ describe('NewSafetyPagePage', { timeout: 30_000 }, () => {
     [
       'a 401',
       () => errorResponse(401, 'UNAUTHENTICATED', 'Log in first'),
-      'Your session has ended. Log in again in another tab, then submit again here.',
+      'Your session has ended. Log in again in another tab, then try again here.',
     ],
     [
       'a 403',
@@ -402,7 +530,7 @@ describe('NewSafetyPagePage', { timeout: 30_000 }, () => {
     await pressSubmit(user);
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      "Couldn't reach LabSafe. Your page is still here; check your connection and submit again.",
+      "Couldn't reach LabSafe. Your page is still here; check your connection and try again.",
     );
     expect(sent).toHaveLength(1);
     expect(screen.getByLabelText('Name')).toHaveValue('Rotary evaporator');

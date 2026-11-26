@@ -1,13 +1,13 @@
 import type { HazardPictogram } from '@labsafe/shared';
-import compressedGas from '../../assets/ghs/compressed-gas.svg';
-import corrosive from '../../assets/ghs/corrosive.svg';
-import environmentalHazard from '../../assets/ghs/environmental-hazard.svg';
-import explosive from '../../assets/ghs/explosive.svg';
-import flammable from '../../assets/ghs/flammable.svg';
-import harmfulIrritant from '../../assets/ghs/harmful-irritant.svg';
-import healthHazard from '../../assets/ghs/health-hazard.svg';
-import oxidizing from '../../assets/ghs/oxidizing.svg';
-import toxic from '../../assets/ghs/toxic.svg';
+import compressedGas from '../assets/ghs/compressed-gas.svg';
+import corrosive from '../assets/ghs/corrosive.svg';
+import environmentalHazard from '../assets/ghs/environmental-hazard.svg';
+import explosive from '../assets/ghs/explosive.svg';
+import flammable from '../assets/ghs/flammable.svg';
+import harmfulIrritant from '../assets/ghs/harmful-irritant.svg';
+import healthHazard from '../assets/ghs/health-hazard.svg';
+import oxidizing from '../assets/ghs/oxidizing.svg';
+import toxic from '../assets/ghs/toxic.svg';
 
 // The nine GHS hazard pictograms (UN GHS, UNECE; E03 design open question 4), one image per
 // shared `HAZARD_PICTOGRAMS` value. Source: the official UNECE pictograms
