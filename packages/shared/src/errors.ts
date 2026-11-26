@@ -22,6 +22,9 @@ export const ErrorCode = z.enum([
   // S03.1: photo upload larger than 5 MB; content not a JPEG or PNG.
   'PHOTO_TOO_LARGE',
   'PHOTO_TYPE',
+  // S04.2: approve a page that is no longer pending; approve a version the author has replaced.
+  'ALREADY_REVIEWED',
+  'SUBMISSION_CHANGED',
 ]);
 export type ErrorCode = z.infer<typeof ErrorCode>;
 

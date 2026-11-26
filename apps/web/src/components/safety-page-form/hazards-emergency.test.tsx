@@ -18,7 +18,7 @@ import {
   toContent,
   type SafetyPageFormValues,
 } from './form-values';
-import { GHS_SYMBOLS } from './ghs-symbols';
+import { GHS_SYMBOLS } from '../ghs-symbols';
 import { HazardsSection } from './HazardsSection';
 
 /** The two sections inside one react-hook-form form, as FE-04's form will hold them. */

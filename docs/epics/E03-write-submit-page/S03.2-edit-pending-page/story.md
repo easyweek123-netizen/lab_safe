@@ -5,7 +5,7 @@ title: Correct my pending page; nobody else can
 type: feature
 status: done
 covers: [US7, R3, R4, R5]
-updated: 2026-11-25
+updated: 2026-11-26
 ---
 
 # S03.2 Correct my pending page; nobody else can
@@ -61,7 +61,7 @@ Shared, in `packages/shared/src/schemas/submissions.ts`: `SubmissionIdParam { id
 
 ## Known gaps
 
-- Review round 1 note (no finding): the save-failure messages reuse S03.1 AC17 texts, so the edit page says "submit again"; rewording needs a change to the frozen AC6.
+- ~~Review round 1 note~~ fixed by [S04.4](../../E04-review-publish/S04.4-form-messages/story.md) (E04 C18, 2026-11-26): the save-failure messages now say "try again".
 - QA run 1 observations (not bugs): while loading, h1 "Edit safety page" shows above "Loading…" even for a page that turns out not to be the person's own (no content is shown); an anonymous visitor on `/contribute/submissions/<id>` is sent to the login page, which AC6 does not cover.
 
 ## Verification
@@ -69,3 +69,5 @@ Shared, in `packages/shared/src/schemas/submissions.ts`: `SubmissionIdParam { id
 **GREEN** · 2026-11-25 · architect review round 1 APPROVE ([review.md](review.md)), no findings. `pnpm verify` exit 0 (shared 129, API unit 133, web 217, integration 283, docs-check OK). `pnpm e2e` 56 passed, with the S03.2 journey at 1280 px and 375 px. Every AC has a test titled `S03.2 AC<n>`: AC1 web and e2e; AC2 integration, web and e2e; AC3 integration and web; AC4 integration and shared; AC5 and AC7 integration (AC7 also e2e); AC6 web; AC8 e2e.
 
 ## Changes
+
+- 2026-11-26 · E04 `/complete-epic`: the "submit again" note marked fixed by S04.4; AC6 ("the messages of S03.1 AC17") is frozen and unchanged; two of those texts are superseded by E04 C18 (S04.4 AC4), so the edit page shows the "try again" versions.

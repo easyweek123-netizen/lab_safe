@@ -163,6 +163,8 @@ describe('/api/submissions/:id', () => {
             name: 'Rotary evaporator',
             status: 'PENDING',
             submittedAt: submission.submittedAt,
+            slug: null,
+            reviewNote: null,
           },
         ],
       });
@@ -387,14 +389,34 @@ describe('/api/submissions/:id', () => {
       expect(await stored()).toEqual(before);
     });
 
-    it('S03.2 AC5 answers 404 for a revision that is no longer pending', async () => {
-      await dataSource.query(`UPDATE instrument_revisions SET status = 'REJECTED' WHERE id = $1`, [
-        submission.id,
-      ]);
+    it('S03.2 AC5 answers 404 to everyone but the author for a revision that is no longer pending; the author resubmits it (S04.3 AC6)', async () => {
+      // A valid rejected row, as the review CHECK requires (S04.2 BE-02).
+      await dataSource.query(
+        `UPDATE instrument_revisions
+         SET status = 'REJECTED', reviewed_by = $2, reviewed_at = now(), review_note = 'Add the emergency number.'
+         WHERE id = $1`,
+        [submission.id, admin.id],
+      );
       const before = await stored();
 
-      expectNotFound(await save(author.cookie, submission.id, page({ description: 'Late.' })));
+      for (const cookie of [
+        undefined,
+        pending.cookie,
+        rejected.cookie,
+        other.cookie,
+        admin.cookie,
+      ]) {
+        expectNotFound(await save(cookie, submission.id, page({ description: 'Late.' })));
+      }
       expect(await stored()).toEqual(before);
+
+      // Since S04.3 the author's save of a rejected revision is a resubmission, not a 404.
+      const response = await save(author.cookie, submission.id, page({ description: 'Late.' }));
+      expect(response.status).toBe(200);
+      expect(Submission.parse(response.body)).toMatchObject({
+        status: 'PENDING',
+        reviewNote: null,
+      });
     });
 
     it('S03.2 AC5 refuses a foreign Origin with 403 FORBIDDEN before any change', async () => {

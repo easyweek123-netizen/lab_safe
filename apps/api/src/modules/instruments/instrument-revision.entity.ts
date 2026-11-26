@@ -23,6 +23,7 @@ import {
   OneToMany,
   PrimaryGeneratedColumn,
   type Relation,
+  Unique,
   UpdateDateColumn,
 } from 'typeorm';
 import { sqlList, valuesOf } from '../../db/sql-list';
@@ -42,11 +43,20 @@ const nullOrNonEmpty = (column: string) => `${column} IS NULL OR btrim(${column}
  * One version of a safety page (table `instrument_revisions`, design doc §3 and E03 design
  * "Data"). Mirrors the `CreateSafetyPageTables` migration exactly, including the constraint names,
  * so a generated migration finds no change. The fixed-list CHECKs are built from the shared
- * constants (I5). E03 holds only what it writes (E03-D6): the review columns come with E04.
+ * constants (I5). E03 holds only what it writes (E03-D6); E04's `AddReviewAndPublishing` adds
+ * the review columns and `version` (E04 design "Data models").
  */
 @Entity({ name: 'instrument_revisions' })
 @Index('instrument_revisions_instrument_id_idx', ['instrumentId'])
 @Index('instrument_revisions_submitted_by_idx', ['submittedBy'])
+@Index('instrument_revisions_status_submitted_at_idx', ['status', 'submittedAt'])
+@Index('instrument_revisions_photo_id_idx', ['photoId'])
+@Unique('instrument_revisions_instrument_id_id_key', ['instrumentId', 'id'])
+@Check(
+  'instrument_revisions_review_check',
+  `(status = 'PENDING' AND reviewed_by IS NULL AND reviewed_at IS NULL AND review_note IS NULL) OR (status = 'APPROVED' AND reviewed_by IS NOT NULL AND reviewed_at IS NOT NULL AND review_note IS NULL) OR (status = 'REJECTED' AND reviewed_by IS NOT NULL AND reviewed_at IS NOT NULL AND review_note IS NOT NULL AND btrim(review_note) <> '')`,
+)
+@Check('instrument_revisions_version_check', `version >= 1`)
 @Check('instrument_revisions_kind_check', `kind IN (${sqlList(REVISION_KINDS)})`)
 @Check('instrument_revisions_status_check', `status IN (${sqlList(REVISION_STATUSES)})`)
 @Check('instrument_revisions_category_check', `category IN (${sqlList(valuesOf(CATEGORIES))})`)
@@ -116,6 +126,29 @@ export class InstrumentRevision {
   /** The first submission; an edit keeps it. */
   @Column({ type: 'timestamptz', name: 'submitted_at' })
   submittedAt!: Date;
+
+  // Review (E04)
+
+  @Column({ type: 'uuid', name: 'reviewed_by', nullable: true })
+  reviewedBy!: string | null;
+
+  @ManyToOne(() => User, { onDelete: 'RESTRICT', nullable: true })
+  @JoinColumn({
+    name: 'reviewed_by',
+    foreignKeyConstraintName: 'instrument_revisions_reviewed_by_fkey',
+  })
+  reviewer!: Relation<User> | null;
+
+  @Column({ type: 'timestamptz', name: 'reviewed_at', nullable: true })
+  reviewedAt!: Date | null;
+
+  /** Only on a `REJECTED` revision; never public. */
+  @Column({ type: 'text', name: 'review_note', nullable: true })
+  reviewNote!: string | null;
+
+  /** +1 on every author save; approve carries the version the admin saw (E04-D2). */
+  @Column({ type: 'integer', default: 1 })
+  version!: number;
 
   // Content (PRD §4.1)
 

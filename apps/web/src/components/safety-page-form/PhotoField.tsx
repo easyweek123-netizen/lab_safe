@@ -4,7 +4,11 @@ import { photoUrl, useUploadPhoto } from '../../api/photos';
 import { photoUploadMessage, PHOTO_TOO_LARGE_MESSAGE } from './failure-messages';
 
 type PhotoFieldProps = {
-  /** The file input's id; also names the hint (`<id>-hint`) and the message (`<id>-error`). */
+  /**
+   * The field's id (`fieldId('photoId')`), which the error summary targets: the file input's while
+   * no photo is shown, "Change photo"'s while one is (the input is then `<id>-file`). It also names
+   * the hint (`<id>-hint`) and the message (`<id>-error`).
+   */
   id: string;
   /** The uploaded photo's id held by the form, or none yet. */
   value: string | null | undefined;
@@ -12,26 +16,31 @@ type PhotoFieldProps = {
   onChange: (photoId: string) => void;
   /** The form's own message for `photoId` (client check or server `fields`). */
   error?: string;
+  /** Called whenever a new file is chosen, before it is checked or uploaded (S04.4 AC3). */
+  onFileChosen?: () => void;
 };
 
 const HINT = 'JPEG or PNG, at most 5 MB';
 
 // The photo of a safety page (S03.1 "UI states", decision E03-D1): a chosen file is checked
 // against 5 MB and uploaded at once; the form keeps only the stored photo's id. A failed upload
-// keeps the photo the form already had (AC17). The hint and the message are the input's
-// description, as in `TextField`.
-export function PhotoField({ id, value, onChange, error }: PhotoFieldProps) {
+// keeps the photo the form already had (AC17). The hint and the message describe the control a
+// keyboard user reaches: the file input, or "Change photo" while a photo is shown, which then
+// also carries the field's id (S04.4 AC1, AC2). The message sits in a polite live region, so it
+// is announced when it appears without a second `alert` next to the form's.
+export function PhotoField({ id, value, onChange, error, onFileChosen }: PhotoFieldProps) {
   const upload = useUploadPhoto();
   const inputRef = useRef<HTMLInputElement>(null);
   const [tooLarge, setTooLarge] = useState(false);
 
-  const onFileChosen = (event: ChangeEvent<HTMLInputElement>) => {
+  const onInputChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     // Cleared, so choosing the same file again is a new choice.
     event.target.value = '';
     if (!file) {
       return;
     }
+    onFileChosen?.();
     upload.reset();
     if (file.size > PHOTO_MAX_BYTES) {
       setTooLarge(true);
@@ -49,10 +58,12 @@ export function PhotoField({ id, value, onChange, error }: PhotoFieldProps) {
   const hintId = `${id}-hint`;
   const errorId = `${id}-error`;
   const hasPhoto = Boolean(value);
+  const inputId = hasPhoto ? `${id}-file` : id;
+  const describedBy = message ? `${hintId} ${errorId}` : hintId;
 
   return (
     <div className="space-y-2">
-      <label htmlFor={id} className="block text-base font-medium text-slate-900">
+      <label htmlFor={inputId} className="block text-base font-medium text-slate-900">
         Photo
       </label>
       <p id={hintId} className="text-base text-slate-700">
@@ -67,13 +78,13 @@ export function PhotoField({ id, value, onChange, error }: PhotoFieldProps) {
       )}
       <input
         ref={inputRef}
-        id={id}
+        id={inputId}
         type="file"
         accept="image/jpeg, image/png"
         disabled={upload.isPending}
         aria-invalid={message ? true : undefined}
-        aria-describedby={message ? `${hintId} ${errorId}` : hintId}
-        onChange={onFileChosen}
+        aria-describedby={describedBy}
+        onChange={onInputChange}
         // With a photo, the input is hidden and "Change photo" opens its picker.
         hidden={hasPhoto}
         className={
@@ -82,7 +93,9 @@ export function PhotoField({ id, value, onChange, error }: PhotoFieldProps) {
       />
       {hasPhoto && (
         <button
+          id={id}
           type="button"
+          aria-describedby={describedBy}
           disabled={upload.isPending}
           onClick={() => inputRef.current?.click()}
           className="min-h-11 rounded border border-slate-400 bg-white px-4 py-2 text-base font-medium text-slate-900 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 disabled:opacity-60"
@@ -95,11 +108,13 @@ export function PhotoField({ id, value, onChange, error }: PhotoFieldProps) {
           Uploading photo…
         </p>
       )}
-      {message && (
-        <p id={errorId} className="text-base break-words text-red-800">
-          {message}
-        </p>
-      )}
+      <div aria-live="polite">
+        {message && (
+          <p id={errorId} className="text-base break-words text-red-800">
+            {message}
+          </p>
+        )}
+      </div>
     </div>
   );
 }

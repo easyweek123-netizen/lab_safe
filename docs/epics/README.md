@@ -12,7 +12,7 @@ Delivery order, top to bottom. Frozen by `/epics`; changes only through `/change
 | E01 | [Foundation](E01-foundation/epic.md) | A running, tested empty app on the developer's machine with every tooling command | NFR6, NFR2 | none | done |
 | E02 | [Accounts and access](E02-accounts-access/epic.md) | People sign up, log in, get approved; admins manage roles | US6, US10, US14, NFR4, NFR5 | E01 | done |
 | E03 | [Write and submit a safety page](E03-write-submit-page/epic.md) | A contributor submits a complete page that stays hidden | US7, R3, R4, R5 | E02 | done |
-| E04 | [Review and publish](E04-review-publish/epic.md) | An admin reviews a page; approved pages become public | US3, US4, US9, US11, US12, R1 | E03 | planned |
+| E04 | [Review and publish](E04-review-publish/epic.md) | An admin reviews a page; approved pages become public | US3, US4, US9, US11, US12, R1 | E03 | done |
 | E05 | [Page updates and deletion](E05-updates-deletion/epic.md) | Published pages can be safely updated and removed | US8, US13, R6 | E04 | planned |
 | E06 | [Search and filters](E06-search-filters/epic.md) | Students find the right page within 3 seconds | US1, US2, NFR1, NFR3, NFR2 | E04 | planned |
 | E07 | [AI safety assistant](E07-ai-assistant/epic.md) | Grounded, cited answers from approved pages | US5, R2 | E04 | planned |

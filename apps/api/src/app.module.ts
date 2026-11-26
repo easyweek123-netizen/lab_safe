@@ -7,8 +7,10 @@ import { RequestOriginGuard } from './common/request-origin.guard';
 import { dataSourceOptions } from './db/data-source';
 import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
+import { InstrumentsModule } from './modules/instruments/instruments.module';
 import { MetaModule } from './modules/meta/meta.module';
 import { PhotosModule } from './modules/photos/photos.module';
+import { ReviewModule } from './modules/review/review.module';
 import { SubmissionsModule } from './modules/submissions/submissions.module';
 
 @Module({})
@@ -26,8 +28,10 @@ export class AppModule {
         }),
         AuthModule,
         HealthModule,
+        InstrumentsModule,
         MetaModule,
         PhotosModule,
+        ReviewModule,
         SubmissionsModule,
         // One origin in test and production (design doc D7): every path outside `/api` gets the
         // built web app, falling back to `index.html`. `/api` paths go on to Nest's router, so an

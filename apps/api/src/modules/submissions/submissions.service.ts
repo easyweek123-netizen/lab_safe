@@ -72,17 +72,26 @@ export class SubmissionsService {
       );
 
       this.logger.log(`Revision ${revision.id} of new instrument ${instrument.id} submitted.`);
-      return toSubmissionResponse({ ...revision, hazards, protectiveEquipment }, user);
+      return toSubmissionResponse({ ...revision, hazards, protectiveEquipment }, user, null);
     });
   }
 
   /**
-   * The caller's own submissions, newest first, in one query of four columns: never the
-   * content, the child rows or the photo bytes (S03.1 AC16).
+   * The caller's own submissions, newest first, in one query of five columns and the
+   * instrument's slug (joined, S04.2 AC10): never the content, the child rows or the photo bytes
+   * (S03.1 AC16). The mapper keeps the review note only for a rejected page (S04.3 AC4).
    */
   async listMine(userId: string): Promise<MySubmissions> {
     const revisions = await this.revisions.find({
-      select: { id: true, name: true, status: true, submittedAt: true },
+      select: {
+        id: true,
+        name: true,
+        status: true,
+        submittedAt: true,
+        reviewNote: true,
+        instrument: { id: true, slug: true },
+      },
+      relations: { instrument: true },
       where: { submittedBy: userId },
       order: { submittedAt: 'DESC', id: 'DESC' },
     });
@@ -92,7 +101,8 @@ export class SubmissionsService {
   /**
    * One submission for `user` (S03.2 AC4, decision E03-D4): its author and approved admins get
    * it; anonymous callers, pending and rejected accounts, other contributors and an id that does
-   * not exist all get the same 404 `NOT_FOUND`. E04 extends this to the admin's review.
+   * not exist all get the same 404 `NOT_FOUND`, whatever the page's status. A rejected page
+   * carries the admin's note (S04.3 AC4).
    */
   async read(id: string, user: CurrentUser | null): Promise<Submission> {
     if (user === null || user.status !== 'APPROVED') {
@@ -110,11 +120,15 @@ export class SubmissionsService {
   }
 
   /**
-   * Replaces the content of `user`'s own pending submission `id` with a parsed page (S03.2 AC2,
+   * Replaces the content of `user`'s own submission `id` with a parsed page (S03.2 AC2,
    * decision E03-D5). One transaction locks the revision row (`FOR UPDATE`, only if it is the
-   * caller's and still `PENDING`; otherwise 404 `NOT_FOUND`, for an admin too), runs S03.1's room
-   * and photo checks, updates the content and `updated_at`, and replaces the hazard and PPE rows.
-   * `kind`, `status`, `submitted_by` and `submitted_at` stay.
+   * caller's; otherwise 404 `NOT_FOUND`, for an admin too). The author of an `APPROVED` revision
+   * gets 409 `ALREADY_REVIEWED` (S04.2 AC10, E04-D8). Otherwise it runs S03.1's room and photo
+   * checks, updates the content and `updated_at`, adds 1 to `version` under the same lock
+   * (S04.2 AC9, E04-D2), and replaces the hazard and PPE rows. A `PENDING` revision is a
+   * correction: `kind`, `status`, `submitted_by` and `submitted_at` stay. A `REJECTED` one is
+   * resubmitted (S04.3 AC6, E04-D5): `PENDING` again with `submitted_at` now, and the reviewer,
+   * review date and note cleared.
    */
   async update(
     id: string,
@@ -127,16 +141,38 @@ export class SubmissionsService {
     return this.dataSource.transaction(async (manager) => {
       const revisions = manager.getRepository(InstrumentRevision);
       const locked = await revisions.findOne({
-        select: { id: true },
-        where: { id, submittedBy: user.id, status: 'PENDING' },
+        select: { id: true, status: true },
+        where: { id, submittedBy: user.id },
         lock: { mode: 'pessimistic_write' },
       });
       if (locked === null) {
         throw notFound();
       }
+      if (locked.status === 'APPROVED') {
+        throw new AppException(409, 'ALREADY_REVIEWED', 'This page has already been reviewed.');
+      }
       await this.checkReferences(manager, user.id, content);
 
-      await revisions.update({ id }, { ...contentColumns(content), updatedAt: new Date() });
+      const now = new Date();
+      const resubmission =
+        locked.status === 'REJECTED'
+          ? {
+              status: 'PENDING' as const,
+              submittedAt: now,
+              reviewedBy: null,
+              reviewedAt: null,
+              reviewNote: null,
+            }
+          : {};
+      await revisions.update(
+        { id },
+        {
+          ...contentColumns(content),
+          ...resubmission,
+          version: () => 'version + 1',
+          updatedAt: now,
+        },
+      );
       await manager.getRepository(RevisionHazard).delete({ revisionId: id });
       await manager.getRepository(RevisionProtectiveEquipment).delete({ revisionId: id });
       await this.insertChildRows(manager, id, content);
@@ -145,14 +181,18 @@ export class SubmissionsService {
       if (submission === null) {
         throw notFound();
       }
-      this.logger.log(`Pending revision ${id} edited.`);
+      this.logger.log(
+        locked.status === 'REJECTED'
+          ? `Rejected revision ${id} resubmitted.`
+          : `Pending revision ${id} edited.`,
+      );
       return submission;
     });
   }
 
   /**
-   * Revision `id` with its hazard and PPE rows and its submitter's id and name, in one query, or
-   * null. With `submittedBy`, only that account's revision matches.
+   * Revision `id` with its hazard and PPE rows, its submitter's id and name and its instrument's
+   * slug, in one query, or null. With `submittedBy`, only that account's revision matches.
    */
   private async loadSubmission(
     manager: EntityManager,
@@ -166,12 +206,16 @@ export class SubmissionsService {
       .leftJoinAndSelect('revision.protectiveEquipment', 'ppe')
       .innerJoin('revision.submitter', 'submitter')
       .addSelect(['submitter.id', 'submitter.name'])
+      .innerJoin('revision.instrument', 'instrument')
+      .addSelect(['instrument.id', 'instrument.slug'])
       .where('revision.id = :id', { id });
     if (submittedBy !== null) {
       query.andWhere('revision.submitted_by = :submittedBy', { submittedBy });
     }
     const revision = await query.getOne();
-    return revision === null ? null : toSubmissionResponse(revision, revision.submitter);
+    return revision === null
+      ? null
+      : toSubmissionResponse(revision, revision.submitter, revision.instrument.slug);
   }
 
   /** Inserts the hazard and PPE rows of `content` for revision `revisionId` and returns them. */

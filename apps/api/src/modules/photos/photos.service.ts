@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import sharp from 'sharp';
 import type { EntityManager, Repository } from 'typeorm';
 import { AppException } from '../../common/app.exception';
+import { PublishedInstrumentsQuery } from '../instruments/published-instruments.query';
 import { Photo } from './photo.entity';
 import { toPhotoResponse } from './photo.response';
 
@@ -29,7 +30,10 @@ interface EncodedPhoto {
 export class PhotosService {
   private readonly logger = new Logger(PhotosService.name);
 
-  constructor(@InjectRepository(Photo) private readonly photos: Repository<Photo>) {}
+  constructor(
+    @InjectRepository(Photo) private readonly photos: Repository<Photo>,
+    private readonly publishedInstruments: PublishedInstrumentsQuery,
+  ) {}
 
   /**
    * Stores an upload of `ownerId` (S03.1 AC4–AC7). `upload` is the file buffer multer kept in
@@ -56,22 +60,40 @@ export class PhotosService {
   }
 
   /**
-   * The bytes of photo `id` for `user` (decision E03-D4): its owner and approved admins get
-   * them; everyone else, and an id that does not exist, get the same 404 `NOT_FOUND`.
-   * E04 extends this to photos of published pages.
+   * The bytes of photo `id` for `user`: the photo of a published revision goes to anyone
+   * (S04.2 AC4, AC12, E04-D7, I11); any other photo only to its owner and approved admins
+   * (E03-D4). Everyone else, and an id that does not exist, get the same 404 `NOT_FOUND`.
    */
   async read(id: string, user: CurrentUser | null): Promise<Buffer> {
-    if (user === null || user.status !== 'APPROVED') {
-      throw notFound();
-    }
     const photo = await this.photos.findOne({
       select: { id: true, bytes: true },
-      where: user.role === 'ADMIN' ? { id } : { id, ownerId: user.id },
+      where: await this.readableWhere(id, user),
     });
     if (photo === null) {
       throw notFound();
     }
     return photo.bytes;
+  }
+
+  /**
+   * Which photo row `user` may read as `id`: any row for an approved admin and for a published
+   * revision's photo, only their own for another approved account. Everyone else is 404.
+   */
+  private async readableWhere(
+    id: string,
+    user: CurrentUser | null,
+  ): Promise<{ id: string; ownerId?: string }> {
+    const approved = user !== null && user.status === 'APPROVED';
+    if (
+      (approved && user.role === 'ADMIN') ||
+      (await this.publishedInstruments.isPublishedPhoto(id))
+    ) {
+      return { id };
+    }
+    if (!approved) {
+      throw notFound();
+    }
+    return { id, ownerId: user.id };
   }
 
   /**

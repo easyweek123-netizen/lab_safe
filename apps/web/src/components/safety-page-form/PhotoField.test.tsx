@@ -244,7 +244,20 @@ describe('PhotoField', () => {
 
     expect(
       await screen.findByText(
-        'Your session has ended. Log in again in another tab, then submit again here.',
+        'Your session has ended. Log in again in another tab, then try again here.',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('S04.4 AC4 says "try again here" when a photo change gets a 401', async () => {
+    countingFailure(() => errorResponse(401, 'UNAUTHENTICATED', 'Log in first'));
+    const { user } = renderField(photoFixture.id);
+
+    await user.upload(screen.getByLabelText('Photo'), jpeg());
+
+    expect(
+      await screen.findByText(
+        'Your session has ended. Log in again in another tab, then try again here.',
       ),
     ).toBeInTheDocument();
   });
@@ -270,6 +283,71 @@ describe('PhotoField', () => {
     expect(await screen.findByText(`Form photo id: ${photoFixture.id}`)).toBeInTheDocument();
     expect(screen.queryByText(NETWORK_MESSAGE)).not.toBeInTheDocument();
     expect(seen).toHaveLength(1);
+  });
+
+  it('S04.4 AC1 announces a refused change on "Change photo" and keeps the old photo', async () => {
+    countingFailure(() =>
+      errorResponse(415, 'PHOTO_TYPE', 'Only JPEG or PNG photos are accepted.'),
+    );
+    const { user } = renderField(photoFixture.id);
+    const change = screen.getByRole('button', { name: 'Change photo' });
+    expect(change).toHaveAccessibleDescription('JPEG or PNG, at most 5 MB');
+    // The live region is on the page before the message, so its arrival is announced.
+    const liveRegion = document.querySelector('[aria-live="polite"]');
+    expect(liveRegion).toBeInTheDocument();
+    expect(liveRegion).toBeEmptyDOMElement();
+
+    await user.upload(screen.getByLabelText('Photo'), jpeg('report.pdf.jpg'));
+
+    const message = await screen.findByText('Only JPEG or PNG photos are accepted.');
+    expect(liveRegion).toContainElement(message);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'Change photo' })).toHaveFocus();
+    expect(screen.getByRole('button', { name: 'Change photo' })).toHaveAccessibleDescription(
+      'JPEG or PNG, at most 5 MB Only JPEG or PNG photos are accepted.',
+    );
+    expect(screen.getByRole('img', { name: 'Photo of the instrument' })).toHaveAttribute(
+      'src',
+      `/api/photos/${photoFixture.id}`,
+    );
+    expect(screen.getByText(`Form photo id: ${photoFixture.id}`)).toBeInTheDocument();
+  });
+
+  it('S04.4 AC1 gives "Change photo" the field id and the form\'s message while a photo is shown', () => {
+    const queryClient = new QueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <PhotoField
+          id="page-photo"
+          value={photoFixture.id}
+          onChange={() => undefined}
+          error="Upload a photo"
+        />
+      </QueryClientProvider>,
+    );
+
+    const change = screen.getByRole('button', { name: 'Change photo' });
+    expect(change).toHaveAttribute('id', 'page-photo');
+    expect(change).toHaveAccessibleDescription('JPEG or PNG, at most 5 MB Upload a photo');
+    expect(screen.getByLabelText('Photo')).not.toHaveAttribute('id', 'page-photo');
+  });
+
+  it('S04.4 AC1 keeps the hint and the message on the file input with no photo shown', async () => {
+    countingFailure(() =>
+      errorResponse(415, 'PHOTO_TYPE', 'Only JPEG or PNG photos are accepted.'),
+    );
+    const { user } = renderField();
+    expect(screen.getByLabelText('Photo')).toHaveAttribute('id', 'page-photo');
+
+    await user.upload(screen.getByLabelText('Photo'), jpeg('report.pdf.jpg'));
+
+    const message = await screen.findByText('Only JPEG or PNG photos are accepted.');
+    expect(document.querySelector('[aria-live="polite"]')).toContainElement(message);
+    expect(screen.getByLabelText('Photo')).toHaveAccessibleDescription(
+      'JPEG or PNG, at most 5 MB Only JPEG or PNG photos are accepted.',
+    );
+    expect(screen.queryByRole('button', { name: 'Change photo' })).not.toBeInTheDocument();
   });
 
   it("S03.1 AC9 shows the form's own message when no photo is uploaded", () => {

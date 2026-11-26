@@ -10,7 +10,7 @@ import {
   toggleProtectiveEquipment,
   type SafetyPageFormValues,
 } from './form-values';
-import { GHS_SYMBOLS } from './ghs-symbols';
+import { GHS_SYMBOLS } from '../ghs-symbols';
 import { SectionFieldset } from './SectionFieldset';
 
 /** A choice's checkbox id: the first gets the field's own id (the error summary links to it). */

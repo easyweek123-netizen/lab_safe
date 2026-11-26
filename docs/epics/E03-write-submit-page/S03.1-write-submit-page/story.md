@@ -5,7 +5,7 @@ title: Write and submit a new safety page
 type: feature
 status: done
 covers: [US7, R3, R4, R5]
-updated: 2026-11-25
+updated: 2026-11-26
 ---
 
 # S03.1 Write and submit a new safety page
@@ -118,10 +118,10 @@ New `ErrorCode` values: `PHOTO_TOO_LARGE`, `PHOTO_TYPE`.
 
 ## Known gaps
 
-- F1 (minor, review round 1): once a photo is shown, the file input with the field's id and description is hidden and "Change photo" has neither, so a failed photo change or a server `photoId` error isn't announced on any reachable control, and the error summary's "Photo" link does nothing (`PhotoField.tsx`).
+- ~~F1~~ fixed by [S04.4](../../E04-review-publish/S04.4-form-messages/story.md) (E04 C16, 2026-11-26): with a photo shown, "Change photo" carries the field's id, hint and message, and the error summary's "Photo" link moves focus to it.
 - F2 (minor, review round 1): `flatten` in `field-labels.ts` skips the keys `type` and `root`, so an error at `hazards.<i>.type` never reaches the error summary (the form can't produce that path today).
 - ~~F3~~ fixed at `/complete-epic` (2026-11-25): `design.md` "Data" now gives the training CHECK's `IS NOT NULL`, the extra CHECKs and the `search_vector` deferral.
-- B1 (minor, QA run 1): after a failed submit, the submit-failure alert stays on the page when the contributor re-uploads a photo and that upload fails, next to the photo's own error.
+- ~~B1~~ fixed by [S04.4](../../E04-review-publish/S04.4-form-messages/story.md) (E04 C17, 2026-11-26): choosing a photo clears the old submit-failure alert.
 
 ## Verification
 
@@ -145,5 +145,7 @@ Review [round 1](review.md) is APPROVE. `pnpm verify` exit 0 (main session: shar
 - **Left open:** review F1–F3 (minor), to be listed under "Known gaps".
 
 ## Changes
+
+- 2026-11-26 · E04 `/complete-epic`: known gaps F1 and B1 marked fixed by S04.4. AC17's network and 401 texts ("…and submit again.", "…then submit again here.") are superseded by E04 C18 (S04.4 AC4): the app now says "try again". AC17 itself is frozen and was not edited.
 
 - 2026-11-25 · `/complete-epic`: Verification references updated to the current lines of `submissions.controller.ts` and `submissions.service.ts` (moved by S03.2 BE-01); review F3 closed by the design.md update.

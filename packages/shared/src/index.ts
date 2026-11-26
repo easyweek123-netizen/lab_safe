@@ -7,3 +7,5 @@ export * from './schemas/admin-users';
 export * from './schemas/photos';
 export * from './schemas/safety-page';
 export * from './schemas/submissions';
+export * from './schemas/instruments';
+export * from './schemas/review';
